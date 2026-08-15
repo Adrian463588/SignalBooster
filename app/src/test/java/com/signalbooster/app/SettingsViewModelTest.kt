@@ -6,8 +6,8 @@ import com.signalbooster.app.testdoubles.FakeSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -46,7 +46,7 @@ class SettingsViewModelTest {
     fun testUpdateProbeEndpoint() = runTest(testDispatcher) {
         val newEndpoint = "https://1.1.1.1"
         viewModel.setProbeEndpoint(newEndpoint)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(newEndpoint, state.probeEndpoint)
@@ -56,7 +56,7 @@ class SettingsViewModelTest {
     fun testUpdateByteBudgetAndTimeout() = runTest(testDispatcher) {
         viewModel.setByteBudget(5242880L)
         viewModel.setProbeTimeout(15000L)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(5242880L, state.probeByteBudget)
@@ -66,7 +66,7 @@ class SettingsViewModelTest {
     @Test
     fun testToggleAdaptiveMonitoring() = runTest(testDispatcher) {
         viewModel.toggleAdaptiveMonitoring(false)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse(state.isAdaptiveMonitoring)
@@ -75,7 +75,7 @@ class SettingsViewModelTest {
     @Test
     fun testWipeLocalData() = runTest(testDispatcher) {
         viewModel.wipeAllLocalData()
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertNotNull(state.wipeMessage)

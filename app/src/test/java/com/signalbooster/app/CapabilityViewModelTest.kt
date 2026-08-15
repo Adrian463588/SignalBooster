@@ -7,8 +7,8 @@ import com.signalbooster.app.testdoubles.FakePrivilegeGateway
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -40,7 +40,7 @@ class CapabilityViewModelTest {
     @Test
     fun testExecuteAllowlistedAction() = runTest(testDispatcher) {
         viewModel.executeAction(AllowlistedAction.NETWORK_PROBE_START)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertNotNull(state.lastActionResult)
