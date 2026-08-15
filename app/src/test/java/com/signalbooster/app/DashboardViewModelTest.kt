@@ -17,8 +17,8 @@ import com.signalbooster.app.testdoubles.FakeSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -56,12 +56,13 @@ class DashboardViewModelTest {
 
     @After
     fun tearDown() {
+        viewModel.stopMonitoring()
         Dispatchers.resetMain()
     }
 
     @Test
     fun testInitialMonitoringState() = runTest(testDispatcher) {
-        advanceUntilIdle()
+        runCurrent()
         val state = viewModel.uiState.value
         assertTrue("Monitoring should be active after init", state.isMonitoring)
     }
@@ -78,7 +79,7 @@ class DashboardViewModelTest {
         )
 
         fakeNetworkMonitor.emitSnapshot(testSnapshot)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(Transport.WIFI, state.networkSnapshot.transport)
@@ -95,7 +96,7 @@ class DashboardViewModelTest {
         )
 
         viewModel.runQualityProbe(ProbeType.HTTP)
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(45, state.qualityMetrics.latencyRttMs)
@@ -113,7 +114,7 @@ class DashboardViewModelTest {
         )
 
         viewModel.attemptRecovery()
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse("Recovering flag should be false", state.isRecovering)
@@ -123,7 +124,7 @@ class DashboardViewModelTest {
     @Test
     fun testStopMonitoringCancelsActiveState() = runTest(testDispatcher) {
         viewModel.stopMonitoring()
-        advanceUntilIdle()
+        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse("Monitoring should be stopped", state.isMonitoring)

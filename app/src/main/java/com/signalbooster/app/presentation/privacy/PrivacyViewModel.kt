@@ -61,11 +61,14 @@ class PrivacyViewModel @Inject constructor(
 
         // Periodic interference classification & baseline updates
         viewModelScope.launch {
-            radioTelemetrySource.cellularMetrics.collect { cellular ->
-                radioTelemetrySource.wifiMetrics.collect { wifi ->
-                    interferenceClassifier.updateBaseline(cellular, wifi)
-                    interferenceClassifier.classifyInterference(cellular, wifi)
-                }
+            kotlinx.coroutines.flow.combine(
+                radioTelemetrySource.cellularMetrics,
+                radioTelemetrySource.wifiMetrics
+            ) { cellular, wifi ->
+                Pair(cellular, wifi)
+            }.collect { (cellular, wifi) ->
+                interferenceClassifier.updateBaseline(cellular, wifi)
+                interferenceClassifier.classifyInterference(cellular, wifi)
             }
         }
     }
