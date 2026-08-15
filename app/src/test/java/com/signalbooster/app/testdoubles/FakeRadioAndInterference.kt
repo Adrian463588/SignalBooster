@@ -1,5 +1,6 @@
 package com.signalbooster.app.testdoubles
 
+import com.signalbooster.app.domain.interfaces.BluetoothScanResults
 import com.signalbooster.app.domain.interfaces.CellularMetrics
 import com.signalbooster.app.domain.interfaces.InterferenceClassifier
 import com.signalbooster.app.domain.interfaces.RadioTelemetrySource
@@ -11,8 +12,8 @@ import com.signalbooster.app.domain.models.InterferenceConfidence
 import com.signalbooster.app.domain.models.InterferenceTier
 import com.signalbooster.app.domain.models.PrivacyPosture
 import com.signalbooster.app.domain.models.WifiPosture
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class FakeRadioTelemetrySource : RadioTelemetrySource {
@@ -23,17 +24,19 @@ class FakeRadioTelemetrySource : RadioTelemetrySource {
             cellularState = CellularPosture()
         )
     )
-    override val privacyPosture: StateFlow<PrivacyPosture> = _posture.asStateFlow()
+    override val privacyPosture: Flow<PrivacyPosture> = _posture.asStateFlow()
 
     private val _cellular = MutableStateFlow(CellularMetrics(rsrp = -75, operator = "TestNet"))
-    override val cellularMetrics: StateFlow<CellularMetrics> = _cellular.asStateFlow()
+    override val cellularMetrics: Flow<CellularMetrics> = _cellular.asStateFlow()
 
     private val _wifi = MutableStateFlow(WifiMetrics(rssi = -55, ssid = "TestWiFi"))
-    override val wifiMetrics: StateFlow<WifiMetrics> = _wifi.asStateFlow()
+    override val wifiMetrics: Flow<WifiMetrics> = _wifi.asStateFlow()
+
+    private val _bluetooth = MutableStateFlow(BluetoothScanResults(deviceCount = 3, isEnabled = true))
+    override val bluetoothScanResults: Flow<BluetoothScanResults> = _bluetooth.asStateFlow()
 
     override suspend fun startCollection() {}
     override suspend fun stopCollection() {}
-    override fun isCollecting(): Boolean = true
 }
 
 class FakeInterferenceClassifier : InterferenceClassifier {
@@ -44,18 +47,18 @@ class FakeInterferenceClassifier : InterferenceClassifier {
             reason = "Radio baselines operating in nominal range"
         )
     )
-    override val currentConfidence: StateFlow<InterferenceConfidence> = _confidence.asStateFlow()
+    override val interferenceConfidence: Flow<InterferenceConfidence> = _confidence.asStateFlow()
 
     var wasBaselinesCleared: Boolean = false
 
     override suspend fun classifyInterference(
-        cellularMetrics: CellularMetrics,
-        wifiMetrics: WifiMetrics
+        cellularMetrics: CellularMetrics?,
+        wifiMetrics: WifiMetrics?
     ): InterferenceConfidence = _confidence.value
 
-    override fun updateBaseline(cellularMetrics: CellularMetrics, wifiMetrics: WifiMetrics) {}
+    override suspend fun updateBaseline(cellularMetrics: CellularMetrics?, wifiMetrics: WifiMetrics?) {}
 
-    override fun clearBaselines() {
+    override suspend fun clearBaselines() {
         wasBaselinesCleared = true
     }
 }
