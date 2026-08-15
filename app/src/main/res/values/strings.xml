@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SignalBooster</string>
+    <string name="dashboard_title">Dashboard</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="crowd_mode_title">Crowd Mode</string>
+    <string name="privacy_title">Privacy</string>
+    <string name="settings_title">Settings</string>
+    <string name="capability_title">Capability</string>
+    
+    <!-- Connection states -->
+    <string name="transport_wifi">Wi-Fi</string>
+    <string name="transport_cellular">Cellular</string>
+    <string name="transport_ethernet">Ethernet</string>
+    <string name="transport_vpn">VPN</string>
+    <string name="transport_unknown">Unknown</string>
+    
+    <string name="validation_validated">Validated</string>
+    <string name="validation_captive_portal">Captive Portal</string>
+    <string name="validation_unvalidated">Unvalidated</string>
+    <string name="validation_failed">Failed</string>
+    <string name="validation_unknown">Unknown</string>
+    
+    <!-- Actions -->
+    <string name="action_start_monitoring">Start Monitoring</string>
+    <string name="action_stop_monitoring">Stop Monitoring</string>
+    <string name="action_run_quality_test">Run Quality Test</string>
+    <string name="action_attempt_recovery">Attempt Recovery</string>
+    <string name="action_get_recommendation">Get Recommendation</string>
+    
+    <string name="status_monitoring_active">Monitoring active</string>
+    <string name="status_no_data">No data available</string>
+    
+    <!-- Quality metrics -->
+    <string name="quality_latency">Latency: %dms</string>
+    <string name="quality_throughput">Throughput: %.1f Mbps</string>
+    <string name="quality_loss_ratio">Loss Ratio: %.1f%%</string>
+    
+    <!-- Cellular metrics -->
+    <string name="cellular_rsrp">RSRP: %d dBm</string>
+    <string name="cellular_rsrq">RSRQ: %d dB</string>
+    <string name="cellular_rssnr">RSSNR: %d dB</string>
+    <string name="cellular_5g_ss_rsrp">5G SS-RSRP: %d dBm</string>
+    <string name="cellular_technology">Technology: %s</string>
+    
+    <!-- Wi-Fi metrics -->
+    <string name="wifi_rssi">RSSI: %d dBm</string>
+    <string name="wifi_frequency">Frequency: %d MHz</string>
+    <string name="wifi_channel">Channel: %d</string>
+    <string name="wifi_link_speed">Link Speed: %d Mbps</string>
+    
+    <!-- Probe types -->
+    <string name="probe_dns">DNS</string>
+    <string name="probe_tcp">TCP</string>
+    <string name="probe_http">HTTP</string>
+    <string name="probe_speed">Speed</string>
+    
+    <!-- Privacy -->
+    <string name="privacy_bluetooth_enabled">Bluetooth: Enabled</string>
+    <string name="privacy_bluetooth_disabled">Bluetooth: Disabled</string>
+    <string name="privacy_wifi_security">Wi-Fi Security: %s</string>
+    <string name="privacy_interference_none">No interference detected</string>
+    <string name="privacy_interference_possible">Possible localized interference</string>
+    <string name="privacy_interference_likely">Likely localized interference</string>
+    
+    <!-- Settings -->
+    <string name="settings_permissions">Permissions</string>
+    <string name="settings_data_budgets">Data Budgets</string>
+    <string name="settings_endpoint_disclosure">Endpoint Disclosure</string>
+    <string name="settings_data_wipe">Wipe Local Data</string>
+    <string name="settings_version">Version: %s</string>
+    
+    <!-- Common -->
+    <string name="button_back">Back</string>
+    <string name="button_ok">OK</string>
+    <string name="button_cancel">Cancel</string>
+    <string name="button_refresh">Refresh</string>
+    <string name="button_clear">Clear</string>
+    <string name="button_save">Save</string>
+    
+    <!-- Status messages -->
+    <string name="status_loading">Loading...</string>
+    <string name="status_success">Success</string>
+    <string name="status_failed">Failed</string>
+    <string name="status_unavailable">Unavailable</string>
+    <string name="status_permission_required">Permission Required</string>
+    <string name="status_capability_unavailable">Capability Unavailable</string>
+    <string name="status_insufficient_data">Insufficient Data</string>
+</resources>

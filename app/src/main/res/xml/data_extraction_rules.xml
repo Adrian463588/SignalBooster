@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Do not backup any app data to cloud -->
+        <exclude domain="root" path="."/>
+    </cloud-backup>
+    <device-transfer>
+        <!-- Allow minimal transfer for app reinstallation -->
+        <include domain="root" path="."/>
+    </device-transfer>
+</data-extraction-rules>
