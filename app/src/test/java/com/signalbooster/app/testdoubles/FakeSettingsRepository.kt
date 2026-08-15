@@ -20,8 +20,8 @@ class FakeSettingsRepository : SettingsRepository {
 
     var wasWiped: Boolean = false
 
-    override suspend fun setProbeEndpoint(endpointUrl: String) {
-        _probeEndpoint.value = endpointUrl
+    override suspend fun setProbeEndpoint(endpoint: String) {
+        _probeEndpoint.value = endpoint
     }
 
     override suspend fun setProbeTimeoutMs(timeoutMs: Long) {
@@ -36,11 +36,12 @@ class FakeSettingsRepository : SettingsRepository {
         _isAdaptive.value = enabled
     }
 
-    override suspend fun wipeLocalData() {
+    override suspend fun wipeLocalData(): Boolean {
         wasWiped = true
         _probeEndpoint.value = "https://connectivitycheck.gstatic.com/generate_204"
         _probeTimeoutMs.value = 10000L
         _probeByteBudget.value = 1048576L
         _isAdaptive.value = true
+        return true
     }
 }

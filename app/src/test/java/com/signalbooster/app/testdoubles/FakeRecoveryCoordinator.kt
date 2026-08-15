@@ -17,17 +17,18 @@ class FakeRecoveryCoordinator : RecoveryCoordinator {
     )
 
     var recoveryResultToReturn: RecoveryResult = RecoveryResult(
-        isSuccess = true,
+        success = true,
         actionTaken = "Stay on validated network",
-        details = null
+        details = null,
+        newState = NetworkSnapshot.EMPTY
     )
 
     override suspend fun getRecommendation(
-        snapshot: NetworkSnapshot,
-        metrics: QualityMetrics?
+        currentState: NetworkSnapshot,
+        qualityMetrics: QualityMetrics?
     ): NetworkRecommendation = recommendationToReturn
 
     override suspend fun attemptRecovery(
-        snapshot: NetworkSnapshot
+        currentState: NetworkSnapshot
     ): RecoveryResult = recoveryResultToReturn
 }
