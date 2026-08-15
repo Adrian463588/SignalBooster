@@ -5,9 +5,8 @@ import com.signalbooster.app.testdoubles.FakeRadioTelemetrySource
 import com.signalbooster.app.testdoubles.FakeSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -21,7 +20,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var fakeSettingsRepository: FakeSettingsRepository
     private lateinit var fakeRadioTelemetrySource: FakeRadioTelemetrySource
     private lateinit var viewModel: SettingsViewModel
@@ -46,7 +45,6 @@ class SettingsViewModelTest {
     fun testUpdateProbeEndpoint() = runTest(testDispatcher) {
         val newEndpoint = "https://1.1.1.1"
         viewModel.setProbeEndpoint(newEndpoint)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(newEndpoint, state.probeEndpoint)
@@ -56,7 +54,6 @@ class SettingsViewModelTest {
     fun testUpdateByteBudgetAndTimeout() = runTest(testDispatcher) {
         viewModel.setByteBudget(5242880L)
         viewModel.setProbeTimeout(15000L)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(5242880L, state.probeByteBudget)
@@ -66,7 +63,6 @@ class SettingsViewModelTest {
     @Test
     fun testToggleAdaptiveMonitoring() = runTest(testDispatcher) {
         viewModel.toggleAdaptiveMonitoring(false)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse(state.isAdaptiveMonitoring)
@@ -75,7 +71,6 @@ class SettingsViewModelTest {
     @Test
     fun testWipeLocalData() = runTest(testDispatcher) {
         viewModel.wipeAllLocalData()
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertNotNull(state.wipeMessage)

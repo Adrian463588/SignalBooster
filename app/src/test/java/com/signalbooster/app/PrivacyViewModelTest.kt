@@ -8,9 +8,8 @@ import com.signalbooster.app.testdoubles.FakeInterferenceClassifier
 import com.signalbooster.app.testdoubles.FakeRadioTelemetrySource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -22,7 +21,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PrivacyViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var fakeTelemetrySource: FakeRadioTelemetrySource
     private lateinit var fakeClassifier: FakeInterferenceClassifier
     private lateinit var fakeAcousticController: FakeAcousticMaskingController
@@ -53,7 +52,6 @@ class PrivacyViewModelTest {
         viewModel.setVolume(0.8f)
         viewModel.setDuration(15)
         viewModel.startAcousticMasking()
-        runCurrent()
 
         var state = viewModel.uiState.value
         assertEquals(AcousticMaskState.RUNNING, state.acousticMaskState)
@@ -61,7 +59,6 @@ class PrivacyViewModelTest {
         assertEquals(0.8f, state.volumeLevel, 0.01f)
 
         viewModel.stopAcousticMasking()
-        runCurrent()
 
         state = viewModel.uiState.value
         assertEquals(AcousticMaskState.STOPPED, state.acousticMaskState)
@@ -70,8 +67,6 @@ class PrivacyViewModelTest {
     @Test
     fun testClearInterferenceBaselines() = runTest(testDispatcher) {
         viewModel.clearInterferenceBaselines()
-        runCurrent()
-
         assertTrue(fakeClassifier.wasBaselinesCleared)
     }
 }

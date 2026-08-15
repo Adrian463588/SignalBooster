@@ -1,7 +1,6 @@
 package com.signalbooster.app
 
 import com.signalbooster.app.domain.interfaces.ProbeType
-import com.signalbooster.app.domain.models.CapabilityState
 import com.signalbooster.app.domain.models.DataAvailability
 import com.signalbooster.app.domain.models.NetworkAction
 import com.signalbooster.app.domain.models.NetworkRecommendation
@@ -16,9 +15,8 @@ import com.signalbooster.app.testdoubles.FakeRecoveryCoordinator
 import com.signalbooster.app.testdoubles.FakeSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -31,7 +29,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var fakeNetworkMonitor: FakeNetworkMonitor
     private lateinit var fakeQualityProbe: FakeQualityProbe
     private lateinit var fakeRecoveryCoordinator: FakeRecoveryCoordinator
@@ -62,7 +60,6 @@ class DashboardViewModelTest {
 
     @Test
     fun testInitialMonitoringState() = runTest(testDispatcher) {
-        runCurrent()
         val state = viewModel.uiState.value
         assertTrue("Monitoring should be active after init", state.isMonitoring)
     }
@@ -79,7 +76,6 @@ class DashboardViewModelTest {
         )
 
         fakeNetworkMonitor.emitSnapshot(testSnapshot)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(Transport.WIFI, state.networkSnapshot.transport)
@@ -96,7 +92,6 @@ class DashboardViewModelTest {
         )
 
         viewModel.runQualityProbe(ProbeType.HTTP)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(45, state.qualityMetrics.latencyRttMs)
@@ -114,7 +109,6 @@ class DashboardViewModelTest {
         )
 
         viewModel.attemptRecovery()
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse("Recovering flag should be false", state.isRecovering)
@@ -124,7 +118,6 @@ class DashboardViewModelTest {
     @Test
     fun testStopMonitoringCancelsActiveState() = runTest(testDispatcher) {
         viewModel.stopMonitoring()
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertFalse("Monitoring should be stopped", state.isMonitoring)

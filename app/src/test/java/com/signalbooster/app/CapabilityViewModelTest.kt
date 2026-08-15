@@ -6,9 +6,8 @@ import com.signalbooster.app.presentation.capability.CapabilityViewModel
 import com.signalbooster.app.testdoubles.FakePrivilegeGateway
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -21,7 +20,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class CapabilityViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var fakePrivilegeGateway: FakePrivilegeGateway
     private lateinit var viewModel: CapabilityViewModel
 
@@ -40,7 +39,6 @@ class CapabilityViewModelTest {
     @Test
     fun testExecuteAllowlistedAction() = runTest(testDispatcher) {
         viewModel.executeAction(AllowlistedAction.NETWORK_PROBE_START)
-        runCurrent()
 
         val state = viewModel.uiState.value
         assertNotNull(state.lastActionResult)
