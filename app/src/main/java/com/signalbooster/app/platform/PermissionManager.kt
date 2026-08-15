@@ -26,7 +26,13 @@ class PermissionManager @Inject constructor(
             Permission.ACCESS_NETWORK_STATE -> hasPermission(Manifest.permission.ACCESS_NETWORK_STATE)
             Permission.ACCESS_WIFI_STATE -> hasPermission(Manifest.permission.ACCESS_WIFI_STATE)
             Permission.CHANGE_WIFI_STATE -> hasPermission(Manifest.permission.CHANGE_WIFI_STATE)
+            Permission.NEARBY_WIFI_DEVICES -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                hasPermission(Manifest.permission.NEARBY_WIFI_DEVICES)
+            } else {
+                true
+            }
             Permission.READ_PHONE_STATE -> hasPermission(Manifest.permission.READ_PHONE_STATE)
+
             Permission.ACCESS_COARSE_LOCATION -> hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
             Permission.ACCESS_FINE_LOCATION -> hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
             Permission.BLUETOOTH -> hasPermission(Manifest.permission.BLUETOOTH)

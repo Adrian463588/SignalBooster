@@ -7,7 +7,9 @@ import com.signalbooster.app.domain.interfaces.RecoveryCoordinator
 import com.signalbooster.app.domain.interfaces.RecoveryResult
 import com.signalbooster.app.domain.models.ConfidenceLevel
 import com.signalbooster.app.domain.models.EvidenceImpact
+import com.signalbooster.app.domain.models.MeasurementConfidence
 import com.signalbooster.app.domain.models.NetworkAction
+
 import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.NetworkValidation
@@ -215,7 +217,7 @@ class RealRecoveryCoordinator @Inject constructor(
         val negativeCount = evidenceList.count { it.impact == EvidenceImpact.NEGATIVE }
         val positiveCount = evidenceList.count { it.impact == EvidenceImpact.POSITIVE }
 
-        when {
+        return@withContext when {
             negativeCount >= 2 -> {
                 NetworkRecommendation(
                     action = NetworkAction.TRY_ALTERNATIVE,
@@ -252,10 +254,15 @@ class RealRecoveryCoordinator @Inject constructor(
                 NetworkRecommendation(
                     action = NetworkAction.STAY,
                     evidence = evidenceList,
-                    confidence = if (qualityMetrics?.measurementConfidence == ConfidenceLevel.HIGH.name.let { ConfidenceLevel.HIGH }) ConfidenceLevel.HIGH else ConfidenceLevel.MEDIUM,
+                    confidence = when (qualityMetrics?.measurementConfidence) {
+                        MeasurementConfidence.HIGH -> ConfidenceLevel.HIGH
+                        MeasurementConfidence.MEDIUM -> ConfidenceLevel.MEDIUM
+                        else -> ConfidenceLevel.LOW
+                    },
                     limitation = "Active connection is currently stable and validated."
                 )
             }
         }
     }
 }
+

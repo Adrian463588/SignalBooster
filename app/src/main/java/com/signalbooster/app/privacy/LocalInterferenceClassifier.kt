@@ -146,7 +146,7 @@ class LocalInterferenceClassifier @Inject constructor() : InterferenceClassifier
         result
     }
 
-    override suspend fun updateBaseline(cellularMetrics: CellularMetrics?, wifiMetrics: WifiMetrics?) = withContext(Dispatchers.Default) {
+    override suspend fun updateBaseline(cellularMetrics: CellularMetrics?, wifiMetrics: WifiMetrics?): Unit = withContext(Dispatchers.Default) {
         cellularMetrics?.rsrp?.let {
             rsrpHistory.add(it.toFloat())
             if (rsrpHistory.size > 50) rsrpHistory.removeAt(0)
@@ -159,9 +159,10 @@ class LocalInterferenceClassifier @Inject constructor() : InterferenceClassifier
             wifiRssiHistory.add(it.toFloat())
             if (wifiRssiHistory.size > 50) wifiRssiHistory.removeAt(0)
         }
+        Unit
     }
 
-    override suspend fun clearBaselines() = withContext(Dispatchers.Default) {
+    override suspend fun clearBaselines(): Unit = withContext(Dispatchers.Default) {
         rsrpHistory.clear()
         rsrqHistory.clear()
         wifiRssiHistory.clear()
@@ -170,3 +171,4 @@ class LocalInterferenceClassifier @Inject constructor() : InterferenceClassifier
         _interferenceConfidence.value = InterferenceConfidence.NORMAL
     }
 }
+
