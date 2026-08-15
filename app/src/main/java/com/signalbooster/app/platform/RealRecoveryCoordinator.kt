@@ -168,39 +168,38 @@ class RealRecoveryCoordinator @Inject constructor(
         }
 
         // 3. Degraded Quality Metrics (Latency / Loss)
-        qualityMetrics?.let { metrics ->
-            metrics.latencyRttMs?.let { latency ->
-                if (latency > 300) {
-                    evidenceList.add(
-                        RecommendationEvidence(
-                            metric = "Latency RTT",
-                            value = "${latency}ms (High)",
-                            impact = EvidenceImpact.NEGATIVE
-                        )
+        val latency = qualityMetrics?.latencyRttMs
+        if (latency != null) {
+            if (latency > 300) {
+                evidenceList.add(
+                    RecommendationEvidence(
+                        metric = "Latency RTT",
+                        value = "${latency}ms (High)",
+                        impact = EvidenceImpact.NEGATIVE
                     )
-                } else if (latency < 100) {
-                    evidenceList.add(
-                        RecommendationEvidence(
-                            metric = "Latency RTT",
-                            value = "${latency}ms (Good)",
-                            impact = EvidenceImpact.POSITIVE
-                        )
+                )
+            } else if (latency < 100) {
+                evidenceList.add(
+                    RecommendationEvidence(
+                        metric = "Latency RTT",
+                        value = "${latency}ms (Good)",
+                        impact = EvidenceImpact.POSITIVE
                     )
-                }
-            }
-
-            metrics.lossRatio?.let { loss ->
-                if (loss > 0.10f) {
-                    evidenceList.add(
-                        RecommendationEvidence(
-                            metric = "Packet Loss",
-                            value = "${(loss * 100).toInt()}% (Severe)",
-                            impact = EvidenceImpact.NEGATIVE
-                        )
-                    )
-                }
+                )
             }
         }
+
+        val loss = qualityMetrics?.lossRatio
+        if (loss != null && loss > 0.10f) {
+            evidenceList.add(
+                RecommendationEvidence(
+                    metric = "Packet Loss",
+                    value = "${(loss * 100).toInt()}% (Severe)",
+                    impact = EvidenceImpact.NEGATIVE
+                )
+            )
+        }
+
 
         // 4. Metered Cellular Consideration
         if (currentState.isMetered && currentState.transport == Transport.CELLULAR) {
