@@ -106,7 +106,12 @@ fun AppNavigation() {
             }
             composable("capabilities") {
                 val viewModel: CapabilityViewModel = hiltViewModel()
-                CapabilityScreen(viewModel = viewModel)
+                CapabilityScreen(
+                    viewModel = viewModel,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
         }
     }

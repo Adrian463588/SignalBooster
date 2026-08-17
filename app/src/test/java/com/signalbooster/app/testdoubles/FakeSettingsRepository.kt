@@ -15,7 +15,7 @@ class FakeSettingsRepository : SettingsRepository {
     private val _probeByteBudget = MutableStateFlow(1048576L)
     override val probeByteBudget: Flow<Long> = _probeByteBudget.asStateFlow()
 
-    private val _isAdaptive = MutableStateFlow(true)
+    private val _isAdaptive = MutableStateFlow(false)
     override val isAdaptiveMonitoringEnabled: Flow<Boolean> = _isAdaptive.asStateFlow()
 
     var wasWiped: Boolean = false

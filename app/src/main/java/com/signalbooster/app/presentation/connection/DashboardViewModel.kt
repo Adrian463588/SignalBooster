@@ -101,27 +101,24 @@ class DashboardViewModel @Inject constructor(
     private fun startAdaptiveProbes() {
         adaptiveMonitoringJob?.cancel()
         adaptiveMonitoringJob = viewModelScope.launch {
-            while (isActive) {
-                val isAdaptiveEnabled = settingsRepository.isAdaptiveMonitoringEnabled.first()
-                if (!isAdaptiveEnabled) {
-                    delay(30000L)
-                    continue
-                }
+            settingsRepository.isAdaptiveMonitoringEnabled.collect { isAdaptiveEnabled ->
+                if (!isAdaptiveEnabled) return@collect
+                while (isActive && networkMonitor.isMonitoring()) {
+                    val currentMetrics = _uiState.value.qualityMetrics
+                    val intervalMs = if ((currentMetrics.latencyRttMs ?: 0) > 200 || (currentMetrics.lossRatio ?: 0f) > 0.05f) {
+                        10000L
+                    } else {
+                        30000L
+                    }
 
-                val currentMetrics = _uiState.value.qualityMetrics
-                val intervalMs = if ((currentMetrics.latencyRttMs ?: 0) > 200 || (currentMetrics.lossRatio ?: 0f) > 0.05f) {
-                    10000L
-                } else {
-                    30000L
-                }
-
-                delay(intervalMs)
-                if (networkMonitor.isMonitoring()) {
-                    val timeout = settingsRepository.probeTimeoutMs.first().coerceAtMost(5000L)
-                    val budget = settingsRepository.probeByteBudget.first()
-                    qualityProbe.startProbe(ProbeType.HTTP, timeout, budget).collect { metrics ->
-                        _uiState.update { it.copy(qualityMetrics = metrics) }
-                        refreshRecommendation(_uiState.value.networkSnapshot, metrics)
+                    delay(intervalMs)
+                    if (networkMonitor.isMonitoring()) {
+                        val timeout = settingsRepository.probeTimeoutMs.first().coerceAtMost(5000L)
+                        val budget = settingsRepository.probeByteBudget.first()
+                        qualityProbe.startProbe(ProbeType.HTTP, timeout, budget).collect { metrics ->
+                            _uiState.update { it.copy(qualityMetrics = metrics) }
+                            refreshRecommendation(_uiState.value.networkSnapshot, metrics)
+                        }
                     }
                 }
             }

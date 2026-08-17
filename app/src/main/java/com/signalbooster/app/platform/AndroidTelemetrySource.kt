@@ -239,18 +239,30 @@ class AndroidTelemetrySource @Inject constructor(
         val adapter: BluetoothAdapter? = bluetoothManager?.adapter
         val isEnabled = adapter?.isEnabled == true
         val isDiscoverable = adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE
+        val isConnected = try {
+            isEnabled && (
+                adapter?.getProfileConnectionState(android.bluetooth.BluetoothProfile.HEADSET) == BluetoothAdapter.STATE_CONNECTED ||
+                adapter?.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP) == BluetoothAdapter.STATE_CONNECTED
+            )
+        } catch (_: SecurityException) {
+            false
+        }
 
         _bluetoothScanResults.value = BluetoothScanResults(
-            deviceCount = 0,
+            deviceCount = if (isConnected) 1 else 0,
             isEnabled = isEnabled,
             isDiscoverable = isDiscoverable,
-            isConnected = false
+            isConnected = isConnected
         )
 
         val btPosture = BluetoothPosture(
             isEnabled = isEnabled,
             isDiscoverable = isDiscoverable,
-            connectionState = if (isEnabled) BluetoothConnectionState.DISCONNECTED else BluetoothConnectionState.DISCONNECTED
+            connectionState = when {
+                isConnected -> BluetoothConnectionState.CONNECTED
+                isEnabled -> BluetoothConnectionState.DISCONNECTED
+                else -> BluetoothConnectionState.DISCONNECTED
+            }
         )
 
         _privacyPosture.value = _privacyPosture.value.copy(

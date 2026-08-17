@@ -96,8 +96,14 @@ class RealQualityProbe @Inject constructor(
                         samples.add(duration)
                     }
                     ProbeType.THROUGHPUT -> {
+                        // Use public CDN 1MB stream or fallback to configured endpoint
+                        val throughputTarget = if (configuredEndpoint.contains("gstatic")) {
+                            "https://speed.cloudflare.com/__down?bytes=$effectiveByteBudget"
+                        } else {
+                            configuredEndpoint
+                        }
                         val result = measureThroughput(
-                            "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png",
+                            throughputTarget,
                             effectiveTimeout,
                             effectiveByteBudget
                         )

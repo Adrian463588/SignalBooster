@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,12 +51,20 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +79,8 @@ fun PrivacyScreen(
     viewModel: PrivacyViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
+    var showResetBaselinesDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -226,9 +237,11 @@ fun PrivacyScreen(
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
-
                         OutlinedButton(
-                            onClick = { viewModel.clearInterferenceBaselines() },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showResetBaselinesDialog = true
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -254,36 +267,41 @@ fun PrivacyScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.GraphicEq,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "ACOUSTIC MASKING",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.GraphicEq,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "ACOUSTIC MASKING",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Local Speech Privacy Aid",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
-
-                            Text(
-                                text = uiState.acousticMaskState.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (uiState.acousticMaskState == AcousticMaskState.RUNNING)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Generates local synthetic audio masking noise to help protect nearby speech. Speaker output only (ZERO microphone recording).",
+                            text = "Plays synthetic noise through device speaker to raise ambient noise floor. Zero microphone recording.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -306,17 +324,26 @@ fun PrivacyScreen(
                         ) {
                             FilterChip(
                                 selected = uiState.selectedNoiseType == MaskingNoiseType.PINK_NOISE,
-                                onClick = { viewModel.setNoiseType(MaskingNoiseType.PINK_NOISE) },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.setNoiseType(MaskingNoiseType.PINK_NOISE)
+                                },
                                 label = { Text("Pink Noise (Voice)") }
                             )
                             FilterChip(
                                 selected = uiState.selectedNoiseType == MaskingNoiseType.BROWN_NOISE,
-                                onClick = { viewModel.setNoiseType(MaskingNoiseType.BROWN_NOISE) },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.setNoiseType(MaskingNoiseType.BROWN_NOISE)
+                                },
                                 label = { Text("Brown Noise") }
                             )
                             FilterChip(
                                 selected = uiState.selectedNoiseType == MaskingNoiseType.WHITE_NOISE,
-                                onClick = { viewModel.setNoiseType(MaskingNoiseType.WHITE_NOISE) },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.setNoiseType(MaskingNoiseType.WHITE_NOISE)
+                                },
                                 label = { Text("White Noise") }
                             )
                         }
@@ -334,7 +361,10 @@ fun PrivacyScreen(
                             listOf(1, 5, 15, 30).forEach { mins ->
                                 FilterChip(
                                     selected = uiState.selectedDurationMinutes == mins,
-                                    onClick = { viewModel.setDuration(mins) },
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.setDuration(mins)
+                                    },
                                     label = { Text("$mins min") },
                                     enabled = uiState.acousticMaskState != AcousticMaskState.RUNNING
                                 )
@@ -343,7 +373,7 @@ fun PrivacyScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Volume Slider
+                        // Volume Slider with Semantics
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -372,7 +402,10 @@ fun PrivacyScreen(
                         Slider(
                             value = uiState.volumeLevel,
                             onValueChange = { viewModel.setVolume(it) },
-                            valueRange = 0.05f..1.0f
+                            valueRange = 0.05f..1.0f,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Acoustic Masking Volume Slider"
+                            }
                         )
 
                         if (uiState.acousticMaskState == AcousticMaskState.RUNNING) {
@@ -396,7 +429,10 @@ fun PrivacyScreen(
                         // Start / Stop Button
                         if (uiState.acousticMaskState != AcousticMaskState.RUNNING) {
                             Button(
-                                onClick = { viewModel.startAcousticMasking() },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.startAcousticMasking()
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -408,7 +444,10 @@ fun PrivacyScreen(
                             }
                         } else {
                             Button(
-                                onClick = { viewModel.stopAcousticMasking() },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.stopAcousticMasking()
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -426,6 +465,32 @@ fun PrivacyScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+
+    if (showResetBaselinesDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetBaselinesDialog = false },
+            title = { Text("Reset Signal Baselines") },
+            text = {
+                Text("Clear accumulated RSRP and RSSI signal averages? The anomaly detector will require 5 new samples to re-learn your baseline.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.clearInterferenceBaselines()
+                        showResetBaselinesDialog = false
+                    }
+                ) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetBaselinesDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

@@ -94,15 +94,17 @@ class RealAcousticMaskingController @Inject constructor(
             audioTrack?.setVolume(clampedVolume)
             audioTrack?.play()
 
+            _maskingState.value = AcousticMaskState.RUNNING
+
             // Start Foreground Service for user-visible status
             startAcousticService()
 
-            // Start synthetic noise synthesis loop
+            // Start synthetic noise synthesis loop with voice-band envelope modulation
             playbackJob = coroutineScope.launch(Dispatchers.Default) {
                 val random = Random()
                 val audioBuffer = ShortArray(bufferSize / 2)
                 
-                // Pink noise filter state variables (Paul Kellet's filter)
+                // Pink noise filter state variables (Paul Kellet's 6-pole filter)
                 var b0 = 0.0
                 var b1 = 0.0
                 var b2 = 0.0
@@ -113,6 +115,10 @@ class RealAcousticMaskingController @Inject constructor(
                 
                 // Brown noise state
                 var lastBrownOutput = 0.0
+                
+                // Voice envelope modulation phase (3 Hz cadence)
+                var modPhase = 0.0
+                val modPhaseIncrement = 2.0 * Math.PI * 3.0 / sampleRate
 
                 while (isActive && _maskingState.value == AcousticMaskState.RUNNING) {
                     for (i in audioBuffer.indices) {
@@ -135,7 +141,13 @@ class RealAcousticMaskingController @Inject constructor(
                                 (lastBrownOutput * 3.5).coerceIn(-1.0, 1.0)
                             }
                         }
-                        audioBuffer[i] = (sample * 32767.0 * _volumeLevel.value).toInt().toShort()
+                        
+                        // Apply subtle 3Hz human speech cadence modulation (depth: 0.15)
+                        val modulation = 0.85 + 0.15 * sin(modPhase)
+                        modPhase += modPhaseIncrement
+                        if (modPhase > 2.0 * Math.PI) modPhase -= 2.0 * Math.PI
+
+                        audioBuffer[i] = (sample * modulation * 32767.0 * _volumeLevel.value).toInt().toShort()
                     }
                     audioTrack?.write(audioBuffer, 0, audioBuffer.size)
                 }
@@ -151,8 +163,6 @@ class RealAcousticMaskingController @Inject constructor(
                     stopMasking()
                 }
             }
-
-            _maskingState.value = AcousticMaskState.RUNNING
         } catch (e: Exception) {
             cleanupAudioResources()
             _maskingState.value = AcousticMaskState.FAILED

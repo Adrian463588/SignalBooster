@@ -22,13 +22,13 @@
 
 <div align="center">
 
-| 📊 Live QoE Probe Dashboard | 📡 Telemetry & Diagnostics | 🔊 Acoustic Masking Visualizer |
+| 📊 Live QoE Dashboard | 📡 Diagnostics & Telemetry | 👥 Crowd Mode Band Analysis |
 | :---: | :---: | :---: |
-| <img src="screenshots/01_dashboard_live_probe.png" width="250" alt="Dashboard Live QoE Probe" /> | <img src="screenshots/02_diagnostics_telemetry.png" width="250" alt="Diagnostics & Telemetry" /> | <img src="screenshots/03_acoustic_masking_visualizer.png" width="250" alt="Acoustic Masking Visualizer" /> |
+| <img src="screenshots/01_dashboard.png" width="240" alt="Dashboard Live QoE Probe" /> | <img src="screenshots/02_diagnostics.png" width="240" alt="Diagnostics & Telemetry" /> | <img src="screenshots/03_crowd_mode.png" width="240" alt="Crowd Mode Band Analysis" /> |
 
-| ⚙️ Settings & Disclosed Targets | 🛡️ Capability Inspector | ⚡ Fail-Closed Action Modal |
+| 🛡️ Privacy & Acoustic Masking | ⚙️ Settings & Data Wipe | ⚡ Privilege & Capability Inspector |
 | :---: | :---: | :---: |
-| <img src="screenshots/04_settings_transparency.png" width="250" alt="Settings & Transparency" /> | <img src="screenshots/05_capabilities_inspector.png" width="250" alt="Privilege & Capabilities Inspector" /> | <img src="screenshots/06_action_confirmation_modal.png" width="250" alt="Action Confirmation Modal" /> |
+| <img src="screenshots/04_privacy.png" width="240" alt="Privacy & Acoustic Masking" /> | <img src="screenshots/05_settings.png" width="240" alt="Settings & Transparency" /> | <img src="screenshots/06_capability.png" width="240" alt="Privilege & Capabilities Inspector" /> |
 
 </div>
 

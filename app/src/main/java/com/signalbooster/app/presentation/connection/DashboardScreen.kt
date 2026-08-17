@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,6 +67,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +76,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.signalbooster.app.domain.models.EvidenceImpact
 import com.signalbooster.app.domain.models.NetworkAction
 import com.signalbooster.app.domain.models.NetworkValidation
+import com.signalbooster.app.domain.models.QualityMetrics
+import com.signalbooster.app.domain.models.SignalQuality
 import com.signalbooster.app.domain.models.Transport
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -80,6 +86,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
 
     // Pulse animation for active monitoring
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_transition")
@@ -255,26 +262,41 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Responsive FlowRow for attribute chips
+                        // Responsive FlowRow for attribute badges
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            SuggestionChip(
+                            AssistChip(
                                 onClick = {},
-                                label = { Text(if (uiState.networkSnapshot.isMetered) "Metered Data" else "Unmetered") }
+                                enabled = false,
+                                label = { Text(if (uiState.networkSnapshot.isMetered) "Metered Data" else "Unmetered") },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                             if (uiState.networkSnapshot.isVpnActive) {
-                                SuggestionChip(
+                                AssistChip(
                                     onClick = {},
-                                    label = { Text("VPN Active") }
+                                    enabled = false,
+                                    label = { Text("VPN Active") },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
                                 )
                             }
                             if (uiState.networkSnapshot.isCaptivePortal) {
-                                SuggestionChip(
+                                AssistChip(
                                     onClick = {},
-                                    label = { Text("Portal Login Required") }
+                                    enabled = false,
+                                    label = { Text("Portal Login Required") },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        disabledContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                        disabledLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
                                 )
                             }
                         }
@@ -401,7 +423,10 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         FilledTonalButton(
-                            onClick = { viewModel.runQualityProbe() },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.runQualityProbe()
+                            },
                             enabled = !uiState.isProbing,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -483,7 +508,10 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         Button(
-                            onClick = { viewModel.attemptRecovery() },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.attemptRecovery()
+                            },
                             enabled = !uiState.isRecovering,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -545,7 +573,10 @@ fun DashboardScreen(
 
                         if (!uiState.isMonitoring) {
                             Button(
-                                onClick = { viewModel.startMonitoring() },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.startMonitoring()
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -557,7 +588,10 @@ fun DashboardScreen(
                             }
                         } else {
                             OutlinedButton(
-                                onClick = { viewModel.stopMonitoring() },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.stopMonitoring()
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),

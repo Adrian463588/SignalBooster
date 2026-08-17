@@ -89,7 +89,6 @@ class RealPrivilegeGateway @Inject constructor(
     }
 
     private fun checkShizukuRunning(): Boolean {
-        // Safe check without crashing if Shizuku library is not bound yet
         return try {
             val binder = getShizukuBinder()
             binder != null && binder.isBinderAlive && binder.pingBinder()
@@ -99,13 +98,22 @@ class RealPrivilegeGateway @Inject constructor(
     }
 
     private fun getShizukuBinder(): IBinder? {
-        return try {
-            val shizukuClass = Class.forName("moe.shizuku.api.ShizukuService")
-            val getBinderMethod = shizukuClass.getMethod("getBinder")
-            getBinderMethod.invoke(null) as? IBinder
-        } catch (_: Throwable) {
-            null
+        // Check modern rikka.shizuku first, then legacy moe.shizuku
+        val candidates = listOf("rikka.shizuku.Shizuku", "moe.shizuku.api.ShizukuService")
+        for (className in candidates) {
+            try {
+                val clazz = Class.forName(className)
+                val method = try {
+                    clazz.getMethod("getBinder")
+                } catch (_: NoSuchMethodException) {
+                    clazz.getMethod("pingBinder")
+                }
+                val result = method.invoke(null)
+                if (result is IBinder) return result
+                if (result is Boolean && result) return null
+            } catch (_: Throwable) {}
         }
+        return null
     }
 
     private fun checkRootAvailable(): Boolean {

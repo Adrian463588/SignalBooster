@@ -12,9 +12,6 @@
     <!-- Telephony permissions -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     
-    <!-- Privileged capability permissions (for Shizuku / Root / Privileged tier) -->
-    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" tools:ignore="ProtectedPermissions" />
     
     <!-- Location permission required for passive cell info and channel detection -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
