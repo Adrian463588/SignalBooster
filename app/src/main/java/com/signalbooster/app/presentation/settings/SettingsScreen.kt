@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -193,14 +195,22 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .selectable(
+                                        selected = uiState.probeEndpoint == endpoint,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.setProbeEndpoint(endpoint)
+                                        },
+                                        role = androidx.compose.ui.semantics.Role.RadioButton
+                                    )
+                                    .padding(vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
                                     selected = uiState.probeEndpoint == endpoint,
-                                    onClick = { viewModel.setProbeEndpoint(endpoint) }
+                                    onClick = null // Row handles selection click
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = endpoint,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -243,7 +253,10 @@ fun SettingsScreen(
                             ).forEach { (bytes, label) ->
                                 FilterChip(
                                     selected = uiState.probeByteBudget == bytes,
-                                    onClick = { viewModel.setByteBudget(bytes) },
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.setByteBudget(bytes)
+                                    },
                                     label = { Text(label) }
                                 )
                             }
@@ -266,7 +279,10 @@ fun SettingsScreen(
                             ).forEach { (ms, label) ->
                                 FilterChip(
                                     selected = uiState.probeTimeoutMs == ms,
-                                    onClick = { viewModel.setProbeTimeout(ms) },
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.setProbeTimeout(ms)
+                                    },
                                     label = { Text(label) }
                                 )
                             }
@@ -274,9 +290,19 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Adaptive Monitoring Switch
+                        // Adaptive Monitoring Switch with row toggleability
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = uiState.isAdaptiveMonitoring,
+                                    onValueChange = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.toggleAdaptiveMonitoring(it)
+                                    },
+                                    role = androidx.compose.ui.semantics.Role.Switch
+                                )
+                                .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -294,7 +320,7 @@ fun SettingsScreen(
                             }
                             Switch(
                                 checked = uiState.isAdaptiveMonitoring,
-                                onCheckedChange = { viewModel.toggleAdaptiveMonitoring(it) }
+                                onCheckedChange = null // Row handles toggle
                             )
                         }
                     }

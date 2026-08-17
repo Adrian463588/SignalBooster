@@ -60,6 +60,11 @@ class RealRecoveryCoordinator @Inject constructor(
     }
 
     override suspend fun attemptRecovery(currentState: NetworkSnapshot): RecoveryResult = withContext(Dispatchers.Default) {
+        _recoveryState.value = RecoveryState.VERIFYING
+        
+        // Stage 1: Invalidate internal DNS resolution and socket caches
+        invalidateDnsAndSockets()
+
         _recoveryState.value = RecoveryState.RECOVERING
         val result = when {
             currentState.isCaptivePortal -> {
@@ -97,12 +102,13 @@ class RealRecoveryCoordinator @Inject constructor(
                         newState = currentState
                     )
                 } catch (e: Exception) {
-                    RecoveryResult(
-                        success = false,
-                        actionTaken = "Failed to open Wi-Fi settings",
-                        details = e.localizedMessage,
-                        newState = currentState
-                    )
+                    // Fallback to general settings
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                        RecoveryResult(success = true, actionTaken = "Opened System Settings", details = "Fallback to system settings.", newState = currentState)
+                    } catch (fallbackEx: Exception) {
+                        RecoveryResult(success = false, actionTaken = "Failed to open Wi-Fi settings", details = e.localizedMessage, newState = currentState)
+                    }
                 }
             }
             currentState.transport == Transport.CELLULAR && currentState.validation != NetworkValidation.VALIDATED -> {
@@ -126,12 +132,12 @@ class RealRecoveryCoordinator @Inject constructor(
                         newState = currentState
                     )
                 } catch (e: Exception) {
-                    RecoveryResult(
-                        success = false,
-                        actionTaken = "Failed to open cellular settings",
-                        details = e.localizedMessage,
-                        newState = currentState
-                    )
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                        RecoveryResult(success = true, actionTaken = "Opened Wireless Settings", details = "Fallback to wireless settings.", newState = currentState)
+                    } catch (fallbackEx: Exception) {
+                        RecoveryResult(success = false, actionTaken = "Failed to open cellular settings", details = e.localizedMessage, newState = currentState)
+                    }
                 }
             }
             else -> {
@@ -147,12 +153,12 @@ class RealRecoveryCoordinator @Inject constructor(
                         newState = currentState
                     )
                 } catch (e: Exception) {
-                    RecoveryResult(
-                        success = false,
-                        actionTaken = "No recovery action available",
-                        details = "Current network state requires no automated hand-off.",
-                        newState = currentState
-                    )
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                        RecoveryResult(success = true, actionTaken = "Opened System Settings", details = "Fallback to system settings.", newState = currentState)
+                    } catch (fallbackEx: Exception) {
+                        RecoveryResult(success = false, actionTaken = "No recovery action available", details = "Current network state requires no automated hand-off.", newState = currentState)
+                    }
                 }
             }
         }
@@ -165,6 +171,10 @@ class RealRecoveryCoordinator @Inject constructor(
         qualityMetrics: QualityMetrics?
     ): NetworkRecommendation = withContext(Dispatchers.Default) {
         val evidenceList = mutableListOf<RecommendationEvidence>()
+
+        if (currentState.validation == NetworkValidation.VALIDATED && (qualityMetrics?.lossRatio ?: 0f) <= 0.05f) {
+            _recoveryState.value = RecoveryState.HEALTHY
+        }
 
         // 1. Captive Portal Evaluation
         if (currentState.isCaptivePortal) {
@@ -205,7 +215,7 @@ class RealRecoveryCoordinator @Inject constructor(
             )
         }
 
-        // 3. Degraded Quality Metrics (Latency / Loss)
+        // 3. Degraded Quality Metrics (Latency / Loss / Bufferbloat)
         val latency = qualityMetrics?.latencyRttMs
         if (latency != null) {
             if (latency > 300) {
@@ -225,6 +235,17 @@ class RealRecoveryCoordinator @Inject constructor(
                     )
                 )
             }
+        }
+
+        val bufferbloatDelta = qualityMetrics?.bufferbloatDeltaMs
+        if (bufferbloatDelta != null && bufferbloatDelta > 150) {
+            evidenceList.add(
+                RecommendationEvidence(
+                    metric = "Bufferbloat Delta",
+                    value = "+${bufferbloatDelta}ms queue inflation",
+                    impact = EvidenceImpact.NEGATIVE
+                )
+            )
         }
 
         val loss = qualityMetrics?.lossRatio

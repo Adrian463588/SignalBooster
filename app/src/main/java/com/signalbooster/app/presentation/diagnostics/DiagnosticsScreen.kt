@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,6 +61,7 @@ fun DiagnosticsScreen(
     viewModel: DiagnosticsViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
 
     Scaffold(
         topBar = {
@@ -286,7 +288,7 @@ fun DiagnosticsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = "Executing ${uiState.lastProbeType?.name} probe...",
+                                        text = "Executing ${uiState.lastProbeType?.name ?: "Quality"} probe...",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -299,13 +301,16 @@ fun DiagnosticsScreen(
                         DetailRow("Measured Latency (RTT)", uiState.qualityMetrics.latencyRttMs?.let { "$it ms" } ?: "--")
                         DetailRow("Jitter", uiState.qualityMetrics.jitterMs?.let { "$it ms" } ?: "--")
                         DetailRow("Packet / Request Loss", uiState.qualityMetrics.lossRatio?.let { "${(it * 100).toInt()}%" } ?: "--")
-                        DetailRow("Throughput Speed", uiState.qualityMetrics.throughputMbps?.let { String.format("%.2f Mbps", it) } ?: "--")
+                        DetailRow("Throughput Speed", uiState.qualityMetrics.throughputMbps?.let { String.format(java.util.Locale.US, "%.2f Mbps", it) } ?: "--")
                         DetailRow("Signal Quality", uiState.qualityMetrics.signalQuality?.name ?: "--")
 
                         Spacer(modifier = Modifier.height(14.dp))
 
                         OutlinedButton(
-                            onClick = { viewModel.clearMetrics() },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.clearMetrics()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -334,7 +339,10 @@ private fun SignalBar(
     val progress = ((currentDbm - minDbm).toFloat() / (maxDbm - minDbm).toFloat()).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
         label = "signal_bar"
     )
 
@@ -376,11 +384,23 @@ private fun DetailRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 5.dp)
+            .semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

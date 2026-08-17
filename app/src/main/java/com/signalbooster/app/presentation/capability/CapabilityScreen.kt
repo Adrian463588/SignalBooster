@@ -47,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +64,7 @@ fun CapabilityScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedActionToConfirm by remember { mutableStateOf<AllowlistedAction?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     Scaffold(
         topBar = {
@@ -164,35 +167,46 @@ fun CapabilityScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    uiState.capabilityStatus.actions.forEach { action ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 5.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = action.name.replace('_', ' '),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            FilledTonalButton(
-                                onClick = { selectedActionToConfirm = action },
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExecuting,
-                                modifier = Modifier.height(48.dp)
+                    if (uiState.capabilityStatus.actions.isEmpty()) {
+                        Text(
+                            text = "No allowlisted privileged actions are currently active on this device tier.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        uiState.capabilityStatus.actions.forEach { action ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 5.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (uiState.isExecuting) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = action.name.replace('_', ' '),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
                                     )
-                                } else {
-                                    Text("Execute", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                }
+                                FilledTonalButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedActionToConfirm = action
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    enabled = !uiState.isExecuting,
+                                    modifier = Modifier.height(48.dp)
+                                ) {
+                                    if (uiState.isExecuting && selectedActionToConfirm == action) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else {
+                                        Text("Execute", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -235,7 +249,12 @@ fun CapabilityScreen(
                                 Text(text = it, style = MaterialTheme.typography.bodySmall)
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(onClick = { viewModel.clearLastResult() }) {
+                            TextButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.clearLastResult()
+                                }
+                            ) {
                                 Text("Dismiss")
                             }
                         }
@@ -257,15 +276,23 @@ fun CapabilityScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.executeAction(action)
                         selectedActionToConfirm = null
-                    }
+                    },
+                    modifier = Modifier.height(48.dp)
                 ) {
-                    Text("Execute")
+                    Text("Confirm & Execute")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { selectedActionToConfirm = null }) {
+                TextButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedActionToConfirm = null
+                    },
+                    modifier = Modifier.height(48.dp)
+                ) {
                     Text("Cancel")
                 }
             }

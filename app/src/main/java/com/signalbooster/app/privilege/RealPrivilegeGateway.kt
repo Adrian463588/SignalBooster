@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import com.signalbooster.app.domain.interfaces.PrivilegeGateway
+import com.signalbooster.app.domain.interfaces.SettingsRepository
 import com.signalbooster.app.domain.models.ActionResult
 import com.signalbooster.app.domain.models.AllowlistedAction
 import com.signalbooster.app.domain.models.BinderStatus
@@ -25,12 +26,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Real implementation of PrivilegeGateway per AGENTS.md section 5.
- * Safely inspects Shizuku binder and root capabilities, executing allowlisted actions with strict fail-closed validation.
+ * Real platform implementation of PrivilegeGateway.
+ * Strictly allowlists capability tiering and Shizuku/Normal API integration.
+ * Complies with AGENTS.md Section 5 and PRD FR-06.
  */
 @Singleton
 class RealPrivilegeGateway @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val settingsRepository: SettingsRepository
 ) : PrivilegeGateway {
 
     private val _capabilityStatus = MutableStateFlow(CapabilityStatus.DEFAULT)
@@ -41,13 +44,14 @@ class RealPrivilegeGateway @Inject constructor(
     }
 
     private fun refreshCapabilityStatus() {
-        val isShizukuInstalled = isPackageInstalled("moe.shizuku.privileged.api")
-        val isRootAvailable = checkRootAvailable()
+        val isShizukuInstalled = isPackageInstalled("moe.shizuku.privileged.api") || 
+                                 isPackageInstalled("rikka.shizuku")
         val isShizukuRunning = checkShizukuRunning()
+        val isShizukuAuthorized = isShizukuRunning && checkShizukuAuthorized()
+        val isRootAvailable = checkRootAvailable()
 
         val tier = when {
-            isRootAvailable -> CapabilityTier.ROOT_SUI
-            isShizukuRunning -> CapabilityTier.SHIZUKU
+            isShizukuRunning && isShizukuAuthorized -> CapabilityTier.SHIZUKU
             else -> CapabilityTier.NORMAL_API
         }
 
@@ -61,9 +65,9 @@ class RealPrivilegeGateway @Inject constructor(
         val deviceSupport = DeviceSupport(
             isShizukuInstalled = isShizukuInstalled,
             isShizukuRunning = isShizukuRunning,
-            isShizukuAuthorized = false,
+            isShizukuAuthorized = isShizukuAuthorized,
             isRootAvailable = isRootAvailable,
-            isSuiAvailable = false,
+            isSuiAvailable = isRootAvailable && isShizukuRunning,
             oem = Build.MANUFACTURER,
             model = Build.MODEL,
             androidVersion = Build.VERSION.SDK_INT
@@ -116,6 +120,17 @@ class RealPrivilegeGateway @Inject constructor(
         return null
     }
 
+    private fun checkShizukuAuthorized(): Boolean {
+        return try {
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+            val method = clazz.getMethod("checkSelfPermission")
+            val result = method.invoke(null)
+            result == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     private fun checkRootAvailable(): Boolean {
         val suPaths = arrayOf(
             "/system/bin/su",
@@ -162,7 +177,7 @@ class RealPrivilegeGateway @Inject constructor(
             AllowlistedAction.WI_FI_RECONNECT,
             AllowlistedAction.WI_FI_SUGGESTION_ADD,
             AllowlistedAction.WI_FI_SUGGESTION_REMOVE -> {
-                if (status.tier == CapabilityTier.SHIZUKU && status.binderStatus == BinderStatus.ALIVE) {
+                if (status.tier == CapabilityTier.SHIZUKU && status.binderStatus == BinderStatus.ALIVE && status.deviceSupport.isShizukuAuthorized) {
                     PrivilegedActionResult(
                         action = action,
                         result = ActionResult.SUCCESS,
@@ -180,10 +195,11 @@ class RealPrivilegeGateway @Inject constructor(
                 }
             }
             AllowlistedAction.DATA_WIPE -> {
+                settingsRepository.wipeLocalData()
                 PrivilegedActionResult(
                     action = action,
                     result = ActionResult.SUCCESS,
-                    details = "Local baseline and settings purged.",
+                    details = "Local baseline and settings purged from DataStore.",
                     requiresUserConfirmation = true
                 )
             }

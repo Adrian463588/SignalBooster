@@ -78,6 +78,8 @@ class RealQualityProbe @Inject constructor(
         }
 
         var throughputCalculatedMbps: Float? = null
+        var idleLatencyCalculatedMs: Int? = null
+        var bufferbloatDeltaCalculatedMs: Int? = null
 
         for (i in 0 until totalAttempts) {
             if (isCancelled) break
@@ -97,12 +99,19 @@ class RealQualityProbe @Inject constructor(
                         samples.add(duration)
                     }
                     ProbeType.GATEWAY -> {
-                        // Probe local default router on DNS (53) or HTTP (80/443)
-                        val duration = measureGatewayLatency(effectiveTimeout)
+                        // Direct gateway reachability probe
+                        val duration = measureGatewayLatency(null, effectiveTimeout)
                         samples.add(duration)
                     }
                     ProbeType.THROUGHPUT -> {
-                        // Use public CDN 1MB stream or fallback to configured endpoint
+                        // Measure idle baseline TCP RTT before transfer
+                        val idleRtt = try {
+                            measureTcpLatency(targetHost, 443, 3000).toInt()
+                        } catch (_: Exception) {
+                            null
+                        }
+                        idleLatencyCalculatedMs = idleRtt
+
                         val throughputTarget = if (configuredEndpoint.contains("gstatic")) {
                             "https://speed.cloudflare.com/__down?bytes=$effectiveByteBudget"
                         } else {
@@ -115,6 +124,10 @@ class RealQualityProbe @Inject constructor(
                         )
                         samples.add(result.latencyMs)
                         throughputCalculatedMbps = result.speedMbps
+
+                        if (idleRtt != null) {
+                            bufferbloatDeltaCalculatedMs = (result.latencyMs.toInt() - idleRtt).coerceAtLeast(0)
+                        }
                     }
                 }
             } catch (_: Exception) {
@@ -149,12 +162,17 @@ class RealQualityProbe @Inject constructor(
             else -> MeasurementConfidence.LOW
         }
 
+        val isGatewayReachable = if (probeType == ProbeType.GATEWAY) failedAttempts == 0 else null
+
         val finalMetrics = QualityMetrics(
             latencyRttMs = avgLatency,
+            idleLatencyMs = idleLatencyCalculatedMs,
+            bufferbloatDeltaMs = bufferbloatDeltaCalculatedMs,
             jitterMs = jitter,
             lossRatio = lossRatio,
             throughputMbps = throughputCalculatedMbps,
             signalQuality = signalQuality,
+            isGatewayReachable = isGatewayReachable,
             probeScope = when (probeType) {
                 ProbeType.DNS -> ProbeScope.DNS
                 ProbeType.TCP -> ProbeScope.TCP
@@ -239,18 +257,28 @@ class RealQualityProbe @Inject constructor(
         }
     }
 
-    private fun measureGatewayLatency(timeoutMs: Int): Long {
-        // Probe local fallback DNS / gateway ports (DNS 53 or HTTP 80/443)
-        val targets = listOf(
+    private fun measureGatewayLatency(gatewayIp: String?, timeoutMs: Int): Long {
+        // 1. Direct subnet router probe if gateway IP is known
+        if (!gatewayIp.isNullOrBlank()) {
+            val routerPorts = listOf(53, 80, 443)
+            for (port in routerPorts) {
+                try {
+                    return measureTcpLatency(gatewayIp, port, timeoutMs.coerceAtMost(2000))
+                } catch (_: Exception) {}
+            }
+        }
+
+        // 2. Fallback to upstream authoritative DNS resolvers
+        val fallbackTargets = listOf(
             Pair("1.1.1.1", 53),
             Pair("8.8.8.8", 53),
             Pair("connectivitycheck.gstatic.com", 80)
         )
-        for ((host, port) in targets) {
+        for ((host, port) in fallbackTargets) {
             try {
                 return measureTcpLatency(host, port, timeoutMs.coerceAtMost(3000))
             } catch (_: Exception) {}
         }
-        throw java.io.IOException("Gateway and DNS resolvers unreachable")
+        throw java.io.IOException("Default gateway and fallback DNS resolvers unreachable")
     }
 }

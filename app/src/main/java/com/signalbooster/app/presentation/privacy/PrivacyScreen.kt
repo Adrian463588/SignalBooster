@@ -1,12 +1,17 @@
 package com.signalbooster.app.presentation.privacy
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +71,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -160,16 +166,19 @@ fun PrivacyScreen(
                 }
 
                 // 2. Confidence-Based Interference Observation Card
+                val interferenceBgColor by animateColorAsState(
+                    targetValue = when (uiState.interferenceConfidence.tier) {
+                        InterferenceTier.LIKELY_LOCALIZED_INTERFERENCE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                        InterferenceTier.POSSIBLE_LOCALIZED_INTERFERENCE -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+                        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    },
+                    label = "interference_bg"
+                )
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = when (uiState.interferenceConfidence.tier) {
-                            InterferenceTier.LIKELY_LOCALIZED_INTERFERENCE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                            InterferenceTier.POSSIBLE_LOCALIZED_INTERFERENCE -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                        }
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = interferenceBgColor),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
@@ -222,16 +231,12 @@ fun PrivacyScreen(
                         )
 
                         if (uiState.interferenceConfidence.observations.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "Contributing Signals:",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                             uiState.interferenceConfidence.observations.forEach { obs ->
                                 Text(
-                                    text = "• ${obs.signal.name}: ${obs.value} dBm (Baseline: ${String.format("%.1f", obs.baseline)}, Dev: ${String.format("%.1f", obs.deviation)}σ)",
-                                    style = MaterialTheme.typography.bodySmall
+                                    text = "• ${obs.signal.name}: ${obs.value} dBm (Baseline: ${String.format(java.util.Locale.US, "%.1f", obs.baseline)}, Dev: ${String.format(java.util.Locale.US, "%.1f", obs.deviation)}σ)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -307,9 +312,15 @@ fun PrivacyScreen(
                         )
 
                         // Live Waveform Visualizer
-                        if (uiState.acousticMaskState == AcousticMaskState.RUNNING) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                            AcousticWaveformVisualizer()
+                        AnimatedVisibility(
+                            visible = uiState.acousticMaskState == AcousticMaskState.RUNNING,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                AcousticWaveformVisualizer()
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
@@ -541,20 +552,26 @@ private fun PostureRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(10.dp))
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
         }
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = status,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = if (isSafe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            color = if (isSafe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
         )
     }
 }

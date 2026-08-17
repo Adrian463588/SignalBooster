@@ -24,11 +24,11 @@
 
 | 📊 Live QoE Dashboard | 📡 Diagnostics & Telemetry | 👥 Crowd Mode Band Analysis |
 | :---: | :---: | :---: |
-| <img src="screenshots/01_dashboard.png" width="240" alt="Dashboard Live QoE Probe" /> | <img src="screenshots/02_diagnostics.png" width="240" alt="Diagnostics & Telemetry" /> | <img src="screenshots/03_crowd_mode.png" width="240" alt="Crowd Mode Band Analysis" /> |
+| <img src="screenshots/dashboard_live.png" width="240" alt="Dashboard Live QoE Probe" /> | <img src="screenshots/diagnostics_live.png" width="240" alt="Diagnostics & Telemetry" /> | <img src="screenshots/crowd_live.png" width="240" alt="Crowd Mode Band Analysis" /> |
 
 | 🛡️ Privacy & Acoustic Masking | ⚙️ Settings & Data Wipe | ⚡ Privilege & Capability Inspector |
 | :---: | :---: | :---: |
-| <img src="screenshots/04_privacy.png" width="240" alt="Privacy & Acoustic Masking" /> | <img src="screenshots/05_settings.png" width="240" alt="Settings & Transparency" /> | <img src="screenshots/06_capability.png" width="240" alt="Privilege & Capabilities Inspector" /> |
+| <img src="screenshots/privacy_live.png" width="240" alt="Privacy & Acoustic Masking" /> | <img src="screenshots/settings_live.png" width="240" alt="Settings & Transparency" /> | <img src="screenshots/capability_live.png" width="240" alt="Privilege & Capabilities Inspector" /> |
 
 </div>
 

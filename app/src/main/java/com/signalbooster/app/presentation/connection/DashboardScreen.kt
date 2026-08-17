@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -18,6 +19,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -262,74 +266,50 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Responsive FlowRow for attribute badges
+                        // Responsive badge chips using semantic Surface
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            AssistChip(
-                                onClick = {},
-                                enabled = false,
-                                label = { Text(if (uiState.networkSnapshot.isMetered) "Metered Data" else "Unmetered") },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            BadgeSurface(
+                                label = if (uiState.networkSnapshot.isMetered) "Metered Data" else "Unmetered",
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             uiState.networkSnapshot.gatewayAddress?.let { gw ->
-                                AssistChip(
-                                    onClick = {},
-                                    enabled = false,
-                                    label = { Text("GW: $gw") },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                        disabledLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                                BadgeSurface(
+                                    label = "GW: $gw",
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                             if (uiState.networkSnapshot.dnsServers.isNotEmpty()) {
-                                AssistChip(
-                                    onClick = {},
-                                    enabled = false,
-                                    label = { Text("DNS: ${uiState.networkSnapshot.dnsServers.first()}") },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                BadgeSurface(
+                                    label = "DNS: ${uiState.networkSnapshot.dnsServers.first()}",
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                             uiState.networkSnapshot.mtu?.let { mtu ->
-                                AssistChip(
-                                    onClick = {},
-                                    enabled = false,
-                                    label = { Text("MTU: $mtu") },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                BadgeSurface(
+                                    label = "MTU: $mtu",
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             if (uiState.networkSnapshot.isVpnActive) {
-                                AssistChip(
-                                    onClick = {},
-                                    enabled = false,
-                                    label = { Text("VPN Active") },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                BadgeSurface(
+                                    label = "VPN Active",
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                             if (uiState.networkSnapshot.isCaptivePortal) {
-                                AssistChip(
-                                    onClick = {},
-                                    enabled = false,
-                                    label = { Text("Portal Login Required") },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        disabledContainerColor = MaterialTheme.colorScheme.errorContainer,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onErrorContainer
-                                    )
+                                BadgeSurface(
+                                    label = "Portal Login Required",
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             }
                         }
@@ -338,6 +318,11 @@ fun DashboardScreen(
 
                 // 2. Measured QoE Score & Performance Gauge Card
                 val qoeScore = uiState.qualityMetrics.calculateQoEScore()
+                val animatedScoreNumber by animateIntAsState(
+                    targetValue = qoeScore,
+                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                    label = "score_number"
+                )
                 val animatedScoreProgress by animateFloatAsState(
                     targetValue = qoeScore / 100f,
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
@@ -396,7 +381,7 @@ fun DashboardScreen(
                                     strokeCap = StrokeCap.Round
                                 )
                                 Text(
-                                    text = "$qoeScore",
+                                    text = "$animatedScoreNumber",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -448,7 +433,7 @@ fun DashboardScreen(
                             )
                             MetricBlock(
                                 label = "Throughput",
-                                value = uiState.qualityMetrics.throughputMbps?.let { String.format("%.1f Mbps", it) } ?: "--",
+                                value = uiState.qualityMetrics.throughputMbps?.let { String.format(java.util.Locale.US, "%.1f Mbps", it) } ?: "--",
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                         }
@@ -647,7 +632,9 @@ fun DashboardScreen(
 @Composable
 private fun MetricBlock(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.padding(horizontal = 8.dp),
+        modifier = modifier
+            .padding(horizontal = 8.dp)
+            .semantics(mergeDescendants = true) {},
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -660,6 +647,28 @@ private fun MetricBlock(label: String, value: String, modifier: Modifier = Modif
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun BadgeSurface(
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        modifier = modifier.semantics(mergeDescendants = true) {}
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )
     }
 }

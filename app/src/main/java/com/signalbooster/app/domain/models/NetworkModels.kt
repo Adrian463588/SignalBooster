@@ -116,11 +116,14 @@ enum class DataAvailability {
  */
 data class QualityMetrics(
     val latencyRttMs: Int? = null,
+    val idleLatencyMs: Int? = null,
+    val bufferbloatDeltaMs: Int? = null, // Loaded RTT - Idle RTT
     val jitterMs: Int? = null,
     val lossRatio: Float? = null, // 0.0 to 1.0
     val throughputMbps: Float? = null,
     val signalStrengthDbm: Int? = null,
     val signalQuality: SignalQuality? = null,
+    val isGatewayReachable: Boolean? = null,
     val probeScope: ProbeScope = ProbeScope.UNKNOWN,
     val measurementConfidence: MeasurementConfidence = MeasurementConfidence.LOW,
     val timestamp: Instant = Instant.now()
@@ -165,6 +168,14 @@ data class QualityMetrics(
                 speed >= 10.0f -> 5.0
                 speed >= 2.0f -> 0.0
                 else -> -10.0
+            }
+        }
+
+        bufferbloatDeltaMs?.let { delta ->
+            if (delta > 200) {
+                score -= 15.0
+            } else if (delta > 100) {
+                score -= 5.0
             }
         }
         

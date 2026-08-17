@@ -43,15 +43,26 @@ class QualityMetricsTest {
     }
 
     @Test
-    fun testGatewayProbeScope() {
-        val metrics = QualityMetrics(
-            latencyRttMs = 12,
-            probeScope = ProbeScope.GATEWAY,
-            measurementConfidence = MeasurementConfidence.HIGH
+    fun testBufferbloatQoEPenalty() {
+        val normalMetrics = QualityMetrics(
+            latencyRttMs = 120,
+            jitterMs = 20,
+            lossRatio = 0.03f,
+            throughputMbps = 5.0f,
+            bufferbloatDeltaMs = 0
+        )
+        val bloatedMetrics = QualityMetrics(
+            latencyRttMs = 120,
+            jitterMs = 20,
+            lossRatio = 0.03f,
+            throughputMbps = 5.0f,
+            bufferbloatDeltaMs = 250 // Severe bufferbloat queue delay
         )
 
-        assertEquals(ProbeScope.GATEWAY, metrics.probeScope)
-        assertEquals(MeasurementConfidence.HIGH, metrics.measurementConfidence)
-        assertEquals(12, metrics.latencyRttMs)
+        val normalScore = normalMetrics.calculateQoEScore()
+        val bloatedScore = bloatedMetrics.calculateQoEScore()
+
+        assertTrue("Bloated connection score ($bloatedScore) should be lower than normal ($normalScore)", bloatedScore < normalScore)
+        assertEquals(normalScore - 15, bloatedScore)
     }
 }

@@ -96,11 +96,22 @@ class CrowdModeViewModel @Inject constructor(
                 )
 
                 // 3. 4G vs 5G Band Steering Decision Engine
+                val dynamicLteBands = if (cellular.bands.isNotEmpty()) {
+                    cellular.bands.joinToString(", ", prefix = "LTE Band ")
+                } else {
+                    null
+                }
+                val dynamicNrBands = if (cellular.bands.isNotEmpty()) {
+                    cellular.bands.joinToString(", ", prefix = "NR Band n")
+                } else {
+                    null
+                }
+
                 if (tech.contains("5G", ignoreCase = true) && isCellCongested) {
                     bandSteeringAdvice = BandSteeringAdvice(
                         currentRat = tech,
                         recommendedRat = "4G LTE (Carrier Aggregation)",
-                        targetBand = "LTE Band 1/3/7/8/20",
+                        targetBand = dynamicLteBands ?: "LTE Carrier Aggregation",
                         reason = "5G NR cell carrier is congested (SINR ${sinr}dB, RSRQ ${rsrq}dB). 4G LTE provides lower packet contention.",
                         confidence = ConfidenceLevel.HIGH
                     )
@@ -108,7 +119,7 @@ class CrowdModeViewModel @Inject constructor(
                     bandSteeringAdvice = BandSteeringAdvice(
                         currentRat = "4G LTE",
                         recommendedRat = "5G NR (High Capacity)",
-                        targetBand = "NR n1/n3/n78",
+                        targetBand = dynamicNrBands ?: "5G NR Spectrum",
                         reason = "Local RF environment is clean. 5G NR provides higher burst throughput.",
                         confidence = ConfidenceLevel.MEDIUM
                     )

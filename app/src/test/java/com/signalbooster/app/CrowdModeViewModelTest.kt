@@ -56,6 +56,7 @@ class CrowdModeViewModelTest {
                 ssRsrp = -80,
                 ssSinr = 2, // Degraded SINR despite high power
                 ssRsrq = -16,
+                bands = listOf(1, 3, 7),
                 isCongested = true
             )
         )
@@ -64,6 +65,7 @@ class CrowdModeViewModelTest {
         val state = viewModel.uiState.value
         assertNotNull(state.bandSteeringAdvice)
         assertEquals("4G LTE (Carrier Aggregation)", state.bandSteeringAdvice?.recommendedRat)
+        assertEquals("LTE Band 1, 3, 7", state.bandSteeringAdvice?.targetBand)
         assertEquals(com.signalbooster.app.domain.models.CongestionState.SPECTRUM_CONGESTION, state.congestionState)
     }
 
