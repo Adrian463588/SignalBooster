@@ -11,6 +11,7 @@ import com.signalbooster.app.domain.models.CapabilityState
 import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.QualityMetrics
+import com.signalbooster.app.domain.models.RecoveryState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,6 +49,13 @@ class DashboardViewModel @Inject constructor(
                     )
                 }
                 refreshRecommendation(snapshot)
+            }
+        }
+
+        // Collect recovery coordinator state machine
+        viewModelScope.launch {
+            recoveryCoordinator.recoveryState.collect { recState ->
+                _uiState.update { it.copy(recoveryState = recState) }
             }
         }
 
@@ -98,17 +106,40 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun flushDnsAndSockets() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRecovering = true) }
+            val success = recoveryCoordinator.invalidateDnsAndSockets()
+            _uiState.update {
+                it.copy(
+                    isRecovering = false,
+                    lastRecoveryMessage = if (success) "DNS caches refreshed & sockets reset" else "DNS flush failed"
+                )
+            }
+            runQualityProbe(ProbeType.DNS)
+        }
+    }
+
     private fun startAdaptiveProbes() {
         adaptiveMonitoringJob?.cancel()
         adaptiveMonitoringJob = viewModelScope.launch {
             settingsRepository.isAdaptiveMonitoringEnabled.collect { isAdaptiveEnabled ->
                 if (!isAdaptiveEnabled) return@collect
+                var currentBackoffMs = 1000L
+                val maxBackoffMs = 30000L
+
                 while (isActive && networkMonitor.isMonitoring()) {
                     val currentMetrics = _uiState.value.qualityMetrics
-                    val intervalMs = if ((currentMetrics.latencyRttMs ?: 0) > 200 || (currentMetrics.lossRatio ?: 0f) > 0.05f) {
-                        10000L
+                    val isDegraded = (currentMetrics.latencyRttMs ?: 0) > 200 || (currentMetrics.lossRatio ?: 0f) > 0.05f
+
+                    val intervalMs = if (isDegraded) {
+                        // Exponential backoff during degradation: 1s -> 2s -> 4s -> 8s -> 15s -> 30s
+                        val next = currentBackoffMs
+                        currentBackoffMs = (currentBackoffMs * 2).coerceAtMost(maxBackoffMs)
+                        next
                     } else {
-                        30000L
+                        currentBackoffMs = 1000L
+                        maxBackoffMs
                     }
 
                     delay(intervalMs)
@@ -155,5 +186,6 @@ data class DashboardUiState(
     val isLoading: Boolean = true,
     val monitoringCapability: CapabilityState = CapabilityState.INSUFFICIENT_DATA,
     val currentRecommendation: NetworkRecommendation? = null,
-    val lastRecoveryMessage: String? = null
+    val lastRecoveryMessage: String? = null,
+    val recoveryState: com.signalbooster.app.domain.models.RecoveryState = com.signalbooster.app.domain.models.RecoveryState.HEALTHY
 )

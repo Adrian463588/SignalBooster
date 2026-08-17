@@ -41,4 +41,17 @@ class QualityMetricsTest {
         assertEquals(ProbeScope.UNKNOWN, metrics.probeScope)
         assertEquals(MeasurementConfidence.LOW, metrics.measurementConfidence)
     }
+
+    @Test
+    fun testGatewayProbeScope() {
+        val metrics = QualityMetrics(
+            latencyRttMs = 12,
+            probeScope = ProbeScope.GATEWAY,
+            measurementConfidence = MeasurementConfidence.HIGH
+        )
+
+        assertEquals(ProbeScope.GATEWAY, metrics.probeScope)
+        assertEquals(MeasurementConfidence.HIGH, metrics.measurementConfidence)
+        assertEquals(12, metrics.latencyRttMs)
+    }
 }

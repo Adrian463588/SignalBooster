@@ -161,13 +161,19 @@ fun DiagnosticsScreen(
                         }
 
                         DetailRow("Operator", uiState.cellularMetrics.operator ?: "Unavailable")
+                        DetailRow("RAT Type", uiState.cellularMetrics.displayNetworkType ?: uiState.cellularMetrics.technology ?: "Unavailable")
                         DetailRow("LTE RSRP", uiState.cellularMetrics.rsrp?.let { "$it dBm" } ?: "Unavailable")
                         DetailRow("LTE RSRQ", uiState.cellularMetrics.rsrq?.let { "$it dB" } ?: "Unavailable")
-                        DetailRow("LTE RSSNR", uiState.cellularMetrics.rssnr?.let { "$it dB" } ?: "Unavailable")
+                        DetailRow("LTE RSSNR / SINR", uiState.cellularMetrics.rssnr?.let { "$it dB" } ?: "Unavailable")
                         DetailRow("5G SS-RSRP", uiState.cellularMetrics.ssRsrp?.let { "$it dBm" } ?: "Unavailable")
                         DetailRow("5G SS-RSRQ", uiState.cellularMetrics.ssRsrq?.let { "$it dB" } ?: "Unavailable")
                         DetailRow("5G SS-SINR", uiState.cellularMetrics.ssSinr?.let { "$it dB" } ?: "Unavailable")
+                        DetailRow("Channel Quality (CQI)", uiState.cellularMetrics.cqi?.let { "$it / 15" } ?: "Unavailable")
+                        DetailRow("Frequency Channel (ARFCN)", uiState.cellularMetrics.nrarfcn?.let { "NR $it" } ?: uiState.cellularMetrics.earfcn?.let { "EARFCN $it" } ?: "Unavailable")
+                        DetailRow("Operating Bands", if (uiState.cellularMetrics.bands.isNotEmpty()) uiState.cellularMetrics.bands.joinToString(", ", prefix = "Band ") else "Unavailable")
+                        DetailRow("Channel Bandwidth", uiState.cellularMetrics.bandwidthKhz?.let { "${it / 1000} MHz" } ?: "Unavailable")
                         DetailRow("Physical Cell ID (PCI)", uiState.cellularMetrics.pci?.toString() ?: "Unavailable")
+                        DetailRow("Cell Sector State", if (uiState.cellularMetrics.isCongested) "High Congestion / Saturated" else "Nominal / Clear")
                     }
                 }
 

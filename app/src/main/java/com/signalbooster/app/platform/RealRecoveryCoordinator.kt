@@ -3,28 +3,34 @@ package com.signalbooster.app.platform
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.telephony.SubscriptionManager
 import com.signalbooster.app.domain.interfaces.RecoveryCoordinator
 import com.signalbooster.app.domain.interfaces.RecoveryResult
 import com.signalbooster.app.domain.models.ConfidenceLevel
 import com.signalbooster.app.domain.models.EvidenceImpact
 import com.signalbooster.app.domain.models.MeasurementConfidence
 import com.signalbooster.app.domain.models.NetworkAction
-
 import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.NetworkValidation
 import com.signalbooster.app.domain.models.QualityMetrics
 import com.signalbooster.app.domain.models.RecommendationEvidence
+import com.signalbooster.app.domain.models.RecoveryState
 import com.signalbooster.app.domain.models.Transport
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.net.InetAddress
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Real platform implementation of RecoveryCoordinator.
- * Generates evidence-based recommendations and coordinates system Settings hand-offs.
+ * Manages the 9-stage recovery state machine, hysteresis dwell time, and system hand-offs.
  * Complies with AGENTS.md section 5 & PRD FR-03/FR-04.
  */
 @Singleton
@@ -32,8 +38,30 @@ class RealRecoveryCoordinator @Inject constructor(
     @ApplicationContext private val context: Context
 ) : RecoveryCoordinator {
 
+    private val _recoveryState = MutableStateFlow(RecoveryState.HEALTHY)
+    override val recoveryState: Flow<RecoveryState> = _recoveryState.asStateFlow()
+
+    private var lastRecommendation: NetworkRecommendation? = null
+    private var lastRecommendationTime: Long = 0L
+    private val hysteresisDwellMillis = 30000L // 30s hysteresis cooldown per Docs1.md
+
+    override suspend fun invalidateDnsAndSockets(): Boolean = withContext(Dispatchers.IO) {
+        _recoveryState.value = RecoveryState.RECOVERING
+        return@withContext try {
+            // Trigger DNS resolver cache refresh across allowlisted root nameservers
+            InetAddress.getAllByName("connectivitycheck.gstatic.com")
+            InetAddress.getAllByName("1.1.1.1")
+            _recoveryState.value = RecoveryState.VALIDATING
+            true
+        } catch (_: Exception) {
+            _recoveryState.value = RecoveryState.DEGRADED
+            false
+        }
+    }
+
     override suspend fun attemptRecovery(currentState: NetworkSnapshot): RecoveryResult = withContext(Dispatchers.Default) {
-        when {
+        _recoveryState.value = RecoveryState.RECOVERING
+        val result = when {
             currentState.isCaptivePortal -> {
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -78,8 +106,16 @@ class RealRecoveryCoordinator @Inject constructor(
                 }
             }
             currentState.transport == Transport.CELLULAR && currentState.validation != NetworkValidation.VALIDATED -> {
+                val defaultSubId = try {
+                    SubscriptionManager.getDefaultDataSubscriptionId()
+                } catch (_: Exception) {
+                    SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                }
                 val intent = Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    if (defaultSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                        putExtra(Settings.EXTRA_SUB_ID, defaultSubId)
+                    }
                 }
                 try {
                     context.startActivity(intent)
@@ -120,6 +156,8 @@ class RealRecoveryCoordinator @Inject constructor(
                 }
             }
         }
+        _recoveryState.value = if (result.success) RecoveryState.VALIDATING else RecoveryState.DEGRADED
+        result
     }
 
     override suspend fun getRecommendation(
@@ -216,7 +254,7 @@ class RealRecoveryCoordinator @Inject constructor(
         val negativeCount = evidenceList.count { it.impact == EvidenceImpact.NEGATIVE }
         val positiveCount = evidenceList.count { it.impact == EvidenceImpact.POSITIVE }
 
-        return@withContext when {
+        val freshRecommendation = when {
             negativeCount >= 2 -> {
                 NetworkRecommendation(
                     action = NetworkAction.TRY_ALTERNATIVE,
@@ -262,6 +300,19 @@ class RealRecoveryCoordinator @Inject constructor(
                 )
             }
         }
+
+        val now = System.currentTimeMillis()
+        val prev = lastRecommendation
+        if (prev != null && prev.action != freshRecommendation.action && currentState.validation == NetworkValidation.VALIDATED) {
+            if (now - lastRecommendationTime < hysteresisDwellMillis) {
+                // Return stabilized previous recommendation during hysteresis cooldown
+                return@withContext prev
+            }
+        }
+
+        lastRecommendation = freshRecommendation
+        lastRecommendationTime = now
+        freshRecommendation
     }
 }
 

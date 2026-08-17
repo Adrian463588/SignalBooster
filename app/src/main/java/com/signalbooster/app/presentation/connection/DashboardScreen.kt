@@ -277,6 +277,39 @@ fun DashboardScreen(
                                     disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
+                            uiState.networkSnapshot.gatewayAddress?.let { gw ->
+                                AssistChip(
+                                    onClick = {},
+                                    enabled = false,
+                                    label = { Text("GW: $gw") },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                        disabledLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+                            }
+                            if (uiState.networkSnapshot.dnsServers.isNotEmpty()) {
+                                AssistChip(
+                                    onClick = {},
+                                    enabled = false,
+                                    label = { Text("DNS: ${uiState.networkSnapshot.dnsServers.first()}") },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                        disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                )
+                            }
+                            uiState.networkSnapshot.mtu?.let { mtu ->
+                                AssistChip(
+                                    onClick = {},
+                                    enabled = false,
+                                    label = { Text("MTU: $mtu") },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
                             if (uiState.networkSnapshot.isVpnActive) {
                                 AssistChip(
                                     onClick = {},

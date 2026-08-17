@@ -63,6 +63,14 @@ class FakeRadioTelemetrySource : RadioTelemetrySource {
     private val _bluetooth = MutableStateFlow(BluetoothScanResults(deviceCount = 3, isEnabled = true))
     override val bluetoothScanResults: Flow<BluetoothScanResults> = _bluetooth.asStateFlow()
 
+    fun emitCellularMetrics(metrics: CellularMetrics) {
+        _cellular.value = metrics
+    }
+
+    fun emitWifiMetrics(metrics: WifiMetrics) {
+        _wifi.value = metrics
+    }
+
     override suspend fun startCollection() {}
     override suspend fun stopCollection() {}
 }

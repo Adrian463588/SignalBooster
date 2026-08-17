@@ -46,4 +46,41 @@ class CrowdModeViewModelTest {
         assertNotNull(state.bandObservations)
         assertNotNull(state.recommendations)
     }
+
+    @Test
+    fun testCongested5gGenerates4gBandSteeringAdvice() = runTest(testDispatcher) {
+        fakeRadioTelemetrySource.emitCellularMetrics(
+            com.signalbooster.app.domain.interfaces.CellularMetrics(
+                technology = "5G NR",
+                displayNetworkType = "5G NSA",
+                ssRsrp = -80,
+                ssSinr = 2, // Degraded SINR despite high power
+                ssRsrq = -16,
+                isCongested = true
+            )
+        )
+        viewModel.loadCrowdAnalysis()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.bandSteeringAdvice)
+        assertEquals("4G LTE (Carrier Aggregation)", state.bandSteeringAdvice?.recommendedRat)
+        assertEquals(com.signalbooster.app.domain.models.CongestionState.SPECTRUM_CONGESTION, state.congestionState)
+    }
+
+    @Test
+    fun testCrowded24GhzWifiFlagsHighCongestion() = runTest(testDispatcher) {
+        fakeRadioTelemetrySource.emitWifiMetrics(
+            com.signalbooster.app.domain.interfaces.WifiMetrics(
+                frequency = 2412, // 2.4 GHz
+                rssi = -70,
+                channel = 1
+            )
+        )
+        viewModel.loadCrowdAnalysis()
+
+        val state = viewModel.uiState.value
+        val wifiObs = state.bandObservations.firstOrNull { it.frequencyMhz == 2412 }
+        assertNotNull(wifiObs)
+        assertEquals("HIGH (Crowded 2.4 GHz spectrum)", wifiObs?.congestionRisk)
+    }
 }

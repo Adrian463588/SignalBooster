@@ -64,6 +64,7 @@ class RealQualityProbe @Inject constructor(
                     ProbeType.TCP -> ProbeScope.TCP
                     ProbeType.HTTP -> ProbeScope.HTTP
                     ProbeType.THROUGHPUT -> ProbeScope.THROUGHPUT
+                    ProbeType.GATEWAY -> ProbeScope.GATEWAY
                 },
                 measurementConfidence = MeasurementConfidence.LOW
             )
@@ -93,6 +94,11 @@ class RealQualityProbe @Inject constructor(
                     }
                     ProbeType.HTTP -> {
                         val duration = measureHttpLatency(configuredEndpoint, effectiveTimeout)
+                        samples.add(duration)
+                    }
+                    ProbeType.GATEWAY -> {
+                        // Probe local default router on DNS (53) or HTTP (80/443)
+                        val duration = measureGatewayLatency(effectiveTimeout)
                         samples.add(duration)
                     }
                     ProbeType.THROUGHPUT -> {
@@ -154,6 +160,7 @@ class RealQualityProbe @Inject constructor(
                 ProbeType.TCP -> ProbeScope.TCP
                 ProbeType.HTTP -> ProbeScope.HTTP
                 ProbeType.THROUGHPUT -> ProbeScope.THROUGHPUT
+                ProbeType.GATEWAY -> ProbeScope.GATEWAY
             },
             measurementConfidence = confidence
         )
@@ -230,5 +237,20 @@ class RealQualityProbe @Inject constructor(
         } finally {
             conn.disconnect()
         }
+    }
+
+    private fun measureGatewayLatency(timeoutMs: Int): Long {
+        // Probe local fallback DNS / gateway ports (DNS 53 or HTTP 80/443)
+        val targets = listOf(
+            Pair("1.1.1.1", 53),
+            Pair("8.8.8.8", 53),
+            Pair("connectivitycheck.gstatic.com", 80)
+        )
+        for ((host, port) in targets) {
+            try {
+                return measureTcpLatency(host, port, timeoutMs.coerceAtMost(3000))
+            } catch (_: Exception) {}
+        }
+        throw java.io.IOException("Gateway and DNS resolvers unreachable")
     }
 }

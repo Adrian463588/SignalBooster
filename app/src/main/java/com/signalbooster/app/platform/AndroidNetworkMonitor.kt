@@ -78,13 +78,13 @@ class AndroidNetworkMonitor @Inject constructor(
                 
                 override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
                     coroutineScope.launch {
-                        updateNetworkSnapshot(network, networkCapabilities)
+                        updateNetworkSnapshot(network, capabilities = networkCapabilities)
                     }
                 }
                 
                 override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) {
                     coroutineScope.launch {
-                        updateNetworkSnapshot(network)
+                        updateNetworkSnapshot(network, linkProperties = linkProperties)
                     }
                 }
             }
@@ -95,7 +95,8 @@ class AndroidNetworkMonitor @Inject constructor(
             // Query initial state
             cm.activeNetwork?.let { network ->
                 val capabilities = cm.getNetworkCapabilities(network)
-                updateNetworkSnapshot(network, capabilities)
+                val linkProperties = cm.getLinkProperties(network)
+                updateNetworkSnapshot(network, capabilities, linkProperties)
             } ?: run {
                 _networkSnapshot.value = NetworkSnapshot.EMPTY.copy(
                     availability = DataAvailability.UNAVAILABLE
@@ -127,10 +128,12 @@ class AndroidNetworkMonitor @Inject constructor(
     
     private fun updateNetworkSnapshot(
         network: Network,
-        capabilities: NetworkCapabilities? = null
+        capabilities: NetworkCapabilities? = null,
+        linkProperties: android.net.LinkProperties? = null
     ) {
         val cm = connectivityManager ?: return
         val actualCapabilities = capabilities ?: cm.getNetworkCapabilities(network)
+        val actualLinkProperties = linkProperties ?: cm.getLinkProperties(network)
         
         val transport = when {
             actualCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> Transport.WIFI
@@ -153,6 +156,14 @@ class AndroidNetworkMonitor @Inject constructor(
         val isMetered = actualCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true
         val isVpnActive = actualCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
         val isCaptivePortal = validation == NetworkValidation.CAPTIVE_PORTAL
+
+        // Extract LinkProperties details
+        val dnsServers = actualLinkProperties?.dnsServers?.mapNotNull { it.hostAddress } ?: emptyList()
+        val defaultRoute = actualLinkProperties?.routes?.firstOrNull { it.isDefaultRoute }
+            ?: actualLinkProperties?.routes?.firstOrNull { it.gateway != null }
+        val gatewayAddress = defaultRoute?.gateway?.hostAddress
+        val interfaceName = actualLinkProperties?.interfaceName
+        val mtu = actualLinkProperties?.mtu?.takeIf { it > 0 }
         
         _networkSnapshot.value = NetworkSnapshot(
             transport = transport,
@@ -160,6 +171,10 @@ class AndroidNetworkMonitor @Inject constructor(
             isMetered = isMetered,
             isCaptivePortal = isCaptivePortal,
             isVpnActive = isVpnActive,
+            gatewayAddress = gatewayAddress,
+            dnsServers = dnsServers,
+            interfaceName = interfaceName,
+            mtu = mtu,
             availability = DataAvailability.AVAILABLE
         )
     }

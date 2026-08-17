@@ -8,7 +8,15 @@ import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.QualityMetrics
 
+import com.signalbooster.app.domain.models.RecoveryState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 class FakeRecoveryCoordinator : RecoveryCoordinator {
+    private val _recoveryState = MutableStateFlow(RecoveryState.HEALTHY)
+    override val recoveryState: Flow<RecoveryState> = _recoveryState.asStateFlow()
+
     var recommendationToReturn: NetworkRecommendation = NetworkRecommendation(
         action = NetworkAction.STAY,
         evidence = emptyList(),
@@ -31,4 +39,10 @@ class FakeRecoveryCoordinator : RecoveryCoordinator {
     override suspend fun attemptRecovery(
         currentState: NetworkSnapshot
     ): RecoveryResult = recoveryResultToReturn
+
+    override suspend fun invalidateDnsAndSockets(): Boolean {
+        _recoveryState.value = RecoveryState.RECOVERING
+        _recoveryState.value = RecoveryState.HEALTHY
+        return true
+    }
 }

@@ -43,16 +43,23 @@ interface RadioTelemetrySource {
 }
 
 data class CellularMetrics(
-    val rsrp: Int? = null,      // Reference Signal Received Power (dBm)
-    val rsrq: Int? = null,      // Reference Signal Received Quality (dB)
-    val rssnr: Int? = null,     // Reference Signal Signal to Noise Ratio (dB)
-    val ssRsrp: Int? = null,    // SS Reference Signal Received Power (5G)
-    val ssRsrq: Int? = null,    // SS Reference Signal Received Quality (5G)
-    val ssSinr: Int? = null,    // SS Signal to Interference plus Noise Ratio (5G)
-    val technology: String? = null, // LTE, 5G NSA, 5G SA, etc.
+    val rsrp: Int? = null,              // Reference Signal Received Power (dBm)
+    val rsrq: Int? = null,              // Reference Signal Received Quality (dB)
+    val rssnr: Int? = null,             // Reference Signal Signal to Noise Ratio (dB)
+    val ssRsrp: Int? = null,            // SS Reference Signal Received Power (5G)
+    val ssRsrq: Int? = null,            // SS Reference Signal Received Quality (5G)
+    val ssSinr: Int? = null,            // SS Signal to Interference plus Noise Ratio (5G)
+    val cqi: Int? = null,               // Channel Quality Indicator (1 - 15)
+    val earfcn: Int? = null,            // LTE E-UTRA Absolute Radio Frequency Channel Number
+    val nrarfcn: Int? = null,           // 5G New Radio Absolute Radio Frequency Channel Number
+    val bands: List<Int> = emptyList(), // Primary & secondary carrier frequency bands
+    val bandwidthKhz: Int? = null,      // Channel bandwidth in kHz
+    val technology: String? = null,     // LTE, 5G NSA, 5G SA, etc.
+    val displayNetworkType: String? = null, // "5G NSA", "5G+", "5G SA", "LTE"
     val operator: String? = null,
     val cellId: Long? = null,
-    val pci: Int? = null
+    val pci: Int? = null,
+    val isCongested: Boolean = false    // Inferred cell sector congestion
 )
 
 data class WifiMetrics(

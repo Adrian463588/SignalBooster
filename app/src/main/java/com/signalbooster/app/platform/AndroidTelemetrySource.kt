@@ -102,16 +102,33 @@ class AndroidTelemetrySource @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    private var currentDisplayOverride: String? = null
+
     private fun startCellularTelemetry() {
         val tm = telephonyManager ?: return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasPhonePermission() && hasLocationPermission()) {
             try {
-                telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CellInfoListener {
+                abstract class MultiTelephonyCallback : TelephonyCallback(), 
+                    TelephonyCallback.CellInfoListener,
+                    TelephonyCallback.DisplayInfoListener
+
+                telephonyCallback = object : MultiTelephonyCallback() {
                     override fun onCellInfoChanged(cellInfo: MutableList<CellInfo>) {
                         coroutineScope.launch {
                             processCellInfo(cellInfo)
                         }
+                    }
+
+                    override fun onDisplayInfoChanged(telephonyDisplayInfo: android.telephony.TelephonyDisplayInfo) {
+                        currentDisplayOverride = when (telephonyDisplayInfo.overrideNetworkType) {
+                            android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA -> "5G NSA"
+                            android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED -> "5G+"
+                            android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_ADVANCED_PRO,
+                            android.telephony.TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_CA -> "LTE+"
+                            else -> null
+                        }
+                        tm.allCellInfo?.let { processCellInfo(it) }
                     }
                 }
                 tm.registerTelephonyCallback(context.mainExecutor, telephonyCallback as TelephonyCallback)
@@ -134,6 +151,11 @@ class AndroidTelemetrySource @Inject constructor(
         var ssRsrp: Int? = null
         var ssRsrq: Int? = null
         var ssSinr: Int? = null
+        var cqi: Int? = null
+        var earfcn: Int? = null
+        var nrarfcn: Int? = null
+        var bands = mutableListOf<Int>()
+        var bandwidthKhz: Int? = null
         var technology: String? = null
         var cellId: Long? = null
         var pci: Int? = null
@@ -146,28 +168,47 @@ class AndroidTelemetrySource @Inject constructor(
                         ssRsrp = it.ssRsrp.takeIf { v -> v != CellInfo.UNAVAILABLE }
                         ssRsrq = it.ssRsrq.takeIf { v -> v != CellInfo.UNAVAILABLE }
                         ssSinr = it.ssSinr.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            cqi = it.csiCqiTableIndex.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                        }
                     }
                     val identity = info.cellIdentity as? CellIdentityNr
                     identity?.let {
                         pci = it.pci.takeIf { v -> v != CellInfo.UNAVAILABLE }
                         cellId = it.nci.takeIf { v -> v != CellInfo.UNAVAILABLE_LONG }
+                        nrarfcn = it.nrarfcn.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            bands.addAll(it.bands.toList())
+                        }
                     }
-                    technology = "5G NR"
+                    technology = currentDisplayOverride ?: "5G SA"
                 } else if (info is CellInfoLte) {
                     val signalStrength = info.cellSignalStrength
                     rsrp = signalStrength.rsrp.takeIf { v -> v != CellInfo.UNAVAILABLE }
                     rsrq = signalStrength.rsrq.takeIf { v -> v != CellInfo.UNAVAILABLE }
                     rssnr = signalStrength.rssnr.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                    cqi = signalStrength.cqi.takeIf { v -> v != CellInfo.UNAVAILABLE }
                     
                     val identity = info.cellIdentity
                     pci = identity.pci.takeIf { v -> v != CellInfo.UNAVAILABLE }
                     cellId = identity.ci.takeIf { v -> v != CellInfo.UNAVAILABLE }?.toLong()
-                    technology = "LTE"
+                    earfcn = identity.earfcn.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                    bandwidthKhz = identity.bandwidth.takeIf { v -> v != CellInfo.UNAVAILABLE }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        bands.addAll(identity.bands.toList())
+                    }
+                    technology = currentDisplayOverride ?: "LTE"
                 }
             }
         }
 
         val operatorName = telephonyManager?.networkOperatorName?.takeIf { it.isNotBlank() }
+
+        // 3GPP Congestion Inference Rule: High signal strength with degraded SINR or poor RSRQ
+        val effectiveRsrp = ssRsrp ?: rsrp ?: -120
+        val effectiveSinr = ssSinr ?: rssnr ?: 15
+        val effectiveRsrq = ssRsrq ?: rsrq ?: -10
+        val isCongested = effectiveRsrp > -100 && (effectiveSinr < 5 || effectiveRsrq < -14)
 
         val newMetrics = CellularMetrics(
             rsrp = rsrp,
@@ -176,10 +217,17 @@ class AndroidTelemetrySource @Inject constructor(
             ssRsrp = ssRsrp,
             ssRsrq = ssRsrq,
             ssSinr = ssSinr,
+            cqi = cqi,
+            earfcn = earfcn,
+            nrarfcn = nrarfcn,
+            bands = bands.distinct(),
+            bandwidthKhz = bandwidthKhz,
             technology = technology ?: getNetworkTypeLabel(),
+            displayNetworkType = currentDisplayOverride ?: technology ?: getNetworkTypeLabel(),
             operator = operatorName,
             cellId = cellId,
-            pci = pci
+            pci = pci,
+            isCongested = isCongested
         )
         _cellularMetrics.value = newMetrics
     }
@@ -188,6 +236,7 @@ class AndroidTelemetrySource @Inject constructor(
         val operatorName = telephonyManager?.networkOperatorName?.takeIf { it.isNotBlank() }
         _cellularMetrics.value = CellularMetrics(
             technology = getNetworkTypeLabel(),
+            displayNetworkType = getNetworkTypeLabel(),
             operator = operatorName
         )
     }

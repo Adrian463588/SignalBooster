@@ -58,12 +58,14 @@ In congested RF environments (such as conferences, transportation hubs, campuses
 
 ## ✨ Key Features
 
-- 📊 **Real-Time Connectivity Dashboard**: Live monitoring of default network capabilities, transport type (Wi-Fi, Cellular, VPN), validation status, and link properties.
-- 🧪 **Active Quality of Experience (QoE) Probing**: Bounded latency probes, DNS query timing, and transport-level health diagnostics.
-- 📡 **Radio & Cellular Metric Extraction**: Transparent breakdown of LTE / 5G NR signal metrics (RSRP, RSRQ, SINR, CQI, PCI, EARFCN) using modern `TelephonyCallback` APIs.
+- 📊 **Real-Time Connectivity Stabilizer**: Live monitoring of default network capabilities, transport type (Wi-Fi, Cellular, VPN), validation status, Gateway IP, DNS servers, and MTU link properties with isolated gateway stall detection.
+- ⏱️ **Adaptive Keep-Alive Engine**: Low-overhead connection heartbeat with bounded exponential backoff intervals (`1s -> 2s -> 4s -> 8s -> 15s -> 30s`), preventing TCP idle timeouts without artificial traffic loops.
+- 🔄 **9-Stage Reconnection State Machine**: Hysteresis-governed recovery coordinator (`HEALTHY -> DEGRADED -> VERIFYING -> RECOVERING -> VALIDATING`) with 30s dwell time to prevent oscillating network flips and dual-SIM `EXTRA_SUB_ID` support.
+- 📡 **4G / 5G NR Band Steering Engine**: Real-time extraction of RSRP, RSRQ, SINR, CQI, EARFCN/NR-ARFCN, operating bands, bandwidth, and 5G NSA vs SA state with dynamic RAT transition advice.
+- 👥 **Crowded Place Booster & Congestion Inference**: 3GPP sector saturation detection distinguishing weak coverage from overloaded cells, Wi-Fi 2.4GHz vs 5GHz channel congestion, and multi-endpoint fallback.
 - 🔍 **Anomaly & Interference Classifier**: Multi-metric anomaly scoring engine that categorizes observations into confidence tiers (`LOW`, `MEDIUM`, `HIGH`) with clear, plain-language explanations.
 - 🎛️ **Capability Tiering (Normal & Shizuku)**: Seamless fallback to standard public Android APIs, with optional Shizuku-assisted diagnostics for advanced power users.
-- 🔊 **Acoustic Privacy Generator**: Local acoustic masking sound generator powered by `AudioTrack` with volume capping and foreground notification controls.
+- 🔊 **Acoustic Privacy Generator**: Local acoustic masking sound generator powered by `AudioTrack` with voice-cadence amplitude modulation, volume capping, and foreground notification controls.
 
 ---
 

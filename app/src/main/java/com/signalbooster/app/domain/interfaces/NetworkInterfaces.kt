@@ -4,6 +4,7 @@ import com.signalbooster.app.domain.models.CapabilityState
 import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.QualityMetrics
+import com.signalbooster.app.domain.models.RecoveryState
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -61,7 +62,8 @@ enum class ProbeType {
     DNS,        // DNS resolution latency
     TCP,        // TCP connection latency
     HTTP,       // HTTP request/response latency & status
-    THROUGHPUT  // Download speed (bounded by byte budget)
+    THROUGHPUT, // Download speed (bounded by byte budget)
+    GATEWAY     // Local hop / default router reachability
 }
 
 /**
@@ -69,6 +71,11 @@ enum class ProbeType {
  * Manages network recovery actions and recommendations.
  */
 interface RecoveryCoordinator {
+    /**
+     * Observable recovery state machine state.
+     */
+    val recoveryState: Flow<RecoveryState>
+
     /**
      * Attempt network recovery based on current state.
      * @param currentState Current network snapshot
@@ -80,6 +87,11 @@ interface RecoveryCoordinator {
      * Get recommended action for current network state.
      */
     suspend fun getRecommendation(currentState: NetworkSnapshot, qualityMetrics: QualityMetrics? = null): NetworkRecommendation
+
+    /**
+     * Invalidate internal DNS resolution caches and reset active socket connections.
+     */
+    suspend fun invalidateDnsAndSockets(): Boolean
 }
 
 data class RecoveryResult(

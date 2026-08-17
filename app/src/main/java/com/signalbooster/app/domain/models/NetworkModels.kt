@@ -13,6 +13,11 @@ data class NetworkSnapshot(
     val isCaptivePortal: Boolean,
     val isVpnActive: Boolean,
     val identifiers: NetworkIdentifiers? = null,
+    val gatewayAddress: String? = null,
+    val dnsServers: List<String> = emptyList(),
+    val interfaceName: String? = null,
+    val mtu: Int? = null,
+    val isGatewayReachable: Boolean? = null,
     val timestamp: Instant = Instant.now(),
     val availability: DataAvailability = DataAvailability.INSUFFICIENT_DATA
 ) {
@@ -35,6 +40,40 @@ data class NetworkIdentifiers(
     val frequency: Int? = null,
     val channel: Int? = null
 )
+
+/**
+ * Inferred spectrum and congestion state per Docs1.md & Docs2.md.
+ */
+enum class CongestionState {
+    NOMINAL,
+    WEAK_COVERAGE,
+    SPECTRUM_CONGESTION,
+    BUFFERBLOAT_DETECTED,
+    UNKNOWN
+}
+
+/**
+ * 4G vs 5G Band Steering & RAT transition recommendation per Docs1.md Section 11.
+ */
+data class BandSteeringAdvice(
+    val currentRat: String,
+    val recommendedRat: String,
+    val targetBand: String? = null,
+    val reason: String,
+    val confidence: ConfidenceLevel,
+    val timestamp: Instant = Instant.now()
+)
+
+/**
+ * Multi-stage recovery state machine states per Docs1.md lines 598-642.
+ */
+enum class RecoveryState {
+    HEALTHY,
+    DEGRADED,
+    VERIFYING,
+    RECOVERING,
+    VALIDATING
+}
 
 /**
  * Network transport types.
@@ -147,6 +186,7 @@ enum class ProbeScope {
     TLS,
     HTTP,
     THROUGHPUT,
+    GATEWAY,
     UNKNOWN
 }
 
