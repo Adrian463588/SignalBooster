@@ -11,6 +11,14 @@
     
     <!-- Telephony permissions -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!--
+        These are privileged declarations for capability inspection only.
+        Android does not grant them to ordinary third-party applications; the
+        runtime remains Settings-only and fail-closed when they are unavailable.
+    -->
+    <uses-permission
+        android:name="android.permission.MODIFY_PHONE_STATE"
+        tools:ignore="ProtectedPermissions" />
     
     
     <!-- Location permission required for passive cell info and channel detection -->
@@ -23,11 +31,19 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_PRIVILEGED"
+        tools:ignore="ProtectedPermissions" />
     
     <!-- Notification permission for foreground services -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Network diagnostics remain installable on devices without telephony. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
     
     <!-- Explicitly omitted per PRD: NO RECORD_AUDIO in version 1 (output-only acoustic masking) -->
 

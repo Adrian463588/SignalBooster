@@ -1,7 +1,6 @@
 package com.signalbooster.app
 
 import com.signalbooster.app.presentation.crowdmode.CrowdModeViewModel
-import com.signalbooster.app.testdoubles.FakeNetworkMonitor
 import com.signalbooster.app.testdoubles.FakeRadioTelemetrySource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,16 +19,14 @@ import org.junit.Test
 class CrowdModeViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private lateinit var fakeNetworkMonitor: FakeNetworkMonitor
     private lateinit var fakeRadioTelemetrySource: FakeRadioTelemetrySource
     private lateinit var viewModel: CrowdModeViewModel
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        fakeNetworkMonitor = FakeNetworkMonitor()
         fakeRadioTelemetrySource = FakeRadioTelemetrySource()
-        viewModel = CrowdModeViewModel(fakeNetworkMonitor, fakeRadioTelemetrySource)
+        viewModel = CrowdModeViewModel(fakeRadioTelemetrySource)
     }
 
     @After
@@ -57,15 +54,16 @@ class CrowdModeViewModelTest {
                 ssSinr = 2, // Degraded SINR despite high power
                 ssRsrq = -16,
                 bands = listOf(1, 3, 7),
-                isCongested = true
+                isCongested = true,
+                hasCongestionEvidence = true
             )
         )
         viewModel.loadCrowdAnalysis()
 
         val state = viewModel.uiState.value
         assertNotNull(state.bandSteeringAdvice)
-        assertEquals("4G LTE (Carrier Aggregation)", state.bandSteeringAdvice?.recommendedRat)
-        assertEquals("LTE Band 1, 3, 7", state.bandSteeringAdvice?.targetBand)
+        assertEquals("Review 4G/LTE in Android Settings", state.bandSteeringAdvice?.recommendedRat)
+        assertEquals(null, state.bandSteeringAdvice?.targetBand)
         assertEquals(com.signalbooster.app.domain.models.CongestionState.SPECTRUM_CONGESTION, state.congestionState)
     }
 
@@ -83,6 +81,6 @@ class CrowdModeViewModelTest {
         val state = viewModel.uiState.value
         val wifiObs = state.bandObservations.firstOrNull { it.frequencyMhz == 2412 }
         assertNotNull(wifiObs)
-        assertEquals("HIGH (Crowded 2.4 GHz spectrum)", wifiObs?.congestionRisk)
+        assertEquals("UNKNOWN (QoE probe required)", wifiObs?.congestionRisk)
     }
 }

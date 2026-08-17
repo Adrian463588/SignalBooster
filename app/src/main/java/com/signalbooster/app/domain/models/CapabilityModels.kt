@@ -35,22 +35,16 @@ data class CapabilityStatus(
     companion object {
         val DEFAULT = CapabilityStatus(
             tier = CapabilityTier.NORMAL_API,
-            state = CapabilityState.AVAILABLE,
-            actions = setOf(
-                AllowlistedAction.NETWORK_MONITOR_START,
-                AllowlistedAction.NETWORK_MONITOR_STOP,
-                AllowlistedAction.NETWORK_PROBE_START,
-                AllowlistedAction.NETWORK_PROBE_STOP,
-                AllowlistedAction.ACOUSTIC_MASKING_START,
-                AllowlistedAction.ACOUSTIC_MASKING_STOP,
-                AllowlistedAction.DATA_WIPE
-            ),
+            state = CapabilityState.CAPABILITY_UNAVAILABLE,
+            actions = emptySet(),
             deviceSupport = DeviceSupport(
                 isShizukuInstalled = false,
                 isShizukuRunning = false,
                 isShizukuAuthorized = false,
                 isRootAvailable = false,
-                isSuiAvailable = false
+                isSuiAvailable = false,
+                isModifyPhoneStateGranted = false,
+                isBluetoothPrivilegedGranted = false
             ),
             binderStatus = BinderStatus.UNKNOWN
         )
@@ -79,47 +73,13 @@ data class DeviceSupport(
     val isSuiAvailable: Boolean,
     val oem: String? = null,
     val model: String? = null,
-    val androidVersion: Int = 0
+    val androidVersion: Int = 0,
+    val isModifyPhoneStateGranted: Boolean = false,
+    val isBluetoothPrivilegedGranted: Boolean = false
 )
 
 enum class BinderStatus {
     ALIVE,
     DEAD,
     UNKNOWN
-}
-
-data class PrivilegedActionResult(
-    val action: AllowlistedAction,
-    val result: ActionResult,
-    val details: String? = null,
-    val requiresUserConfirmation: Boolean = true,
-    val isReversible: Boolean = false,
-    val timestamp: Instant = Instant.now()
-)
-
-enum class ActionResult {
-    SUCCESS,
-    FAILED,
-    CAPABILITY_UNAVAILABLE,
-    PERMISSION_DENIED,
-    BINDER_DEAD,
-    UNSUPPORTED_OEM,
-    USER_CANCELLED
-}
-
-/**
- * Recovery action models per FR-03.
- */
-data class RecoveryAction(
-    val action: RecoveryActionType,
-    val parameters: Map<String, String> = emptyMap(),
-    val timeoutMillis: Long = 10000L,
-    val maxRetries: Int = 3
-)
-
-enum class RecoveryActionType {
-    RETRY_CONNECTION,
-    WI_FI_NETWORK_SUGGESTION,
-    OPEN_SETTINGS,
-    SWITCH_TRANSPORT
 }

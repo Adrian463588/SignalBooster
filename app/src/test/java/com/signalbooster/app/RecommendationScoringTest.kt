@@ -29,7 +29,7 @@ class RecommendationScoringTest {
 
         // QoE score calculation verification
         val metrics = QualityMetrics(latencyRttMs = 150, lossRatio = 0.0f)
-        val score = metrics.calculateQoEScore()
+        val score = requireNotNull(metrics.calculateQoEScore())
         assertTrue("Score should be calculated reasonably", score in 0..100)
 
         // Captive portal evaluation
@@ -52,8 +52,8 @@ class RecommendationScoringTest {
             throughputMbps = 1.0f
         )
 
-        val goodScore = goodMetrics.calculateQoEScore()
-        val degradedScore = degradedMetrics.calculateQoEScore()
+        val goodScore = requireNotNull(goodMetrics.calculateQoEScore())
+        val degradedScore = requireNotNull(degradedMetrics.calculateQoEScore())
 
         assertTrue("Good connection score should exceed 80, was $goodScore", goodScore >= 80)
         assertTrue("Degraded connection score should be below 50, was $degradedScore", degradedScore < 50)

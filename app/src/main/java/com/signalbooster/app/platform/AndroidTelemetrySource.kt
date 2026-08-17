@@ -204,11 +204,18 @@ class AndroidTelemetrySource @Inject constructor(
 
         val operatorName = telephonyManager?.networkOperatorName?.takeIf { it.isNotBlank() }
 
-        // 3GPP Congestion Inference Rule: High signal strength with degraded SINR or poor RSRQ
-        val effectiveRsrp = ssRsrp ?: rsrp ?: -120
-        val effectiveSinr = ssSinr ?: rssnr ?: 15
-        val effectiveRsrq = ssRsrq ?: rsrq ?: -10
-        val isCongested = effectiveRsrp > -100 && (effectiveSinr < 5 || effectiveRsrq < -14)
+        // 3GPP congestion inference is only available when all required
+        // measurements are exposed by the platform. Missing values remain
+        // unknown instead of being converted into nominal signal values.
+        val effectiveRsrp = ssRsrp ?: rsrp
+        val effectiveSinr = ssSinr ?: rssnr
+        val effectiveRsrq = ssRsrq ?: rsrq
+        val hasCongestionEvidence = effectiveRsrp != null && effectiveSinr != null && effectiveRsrq != null
+        val isCongested = if (effectiveRsrp != null && effectiveSinr != null && effectiveRsrq != null) {
+            effectiveRsrp > -100 && (effectiveSinr < 5 || effectiveRsrq < -14)
+        } else {
+            false
+        }
 
         val newMetrics = CellularMetrics(
             rsrp = rsrp,
@@ -227,7 +234,8 @@ class AndroidTelemetrySource @Inject constructor(
             operator = operatorName,
             cellId = cellId,
             pci = pci,
-            isCongested = isCongested
+            isCongested = isCongested,
+            hasCongestionEvidence = hasCongestionEvidence
         )
         _cellularMetrics.value = newMetrics
     }
@@ -241,8 +249,8 @@ class AndroidTelemetrySource @Inject constructor(
         )
     }
 
-    private fun getNetworkTypeLabel(): String {
-        val tm = telephonyManager ?: return "Unknown"
+    private fun getNetworkTypeLabel(): String? {
+        val tm = telephonyManager ?: return null
         return try {
             when (tm.dataNetworkType) {
                 TelephonyManager.NETWORK_TYPE_NR -> "5G"
@@ -252,10 +260,10 @@ class AndroidTelemetrySource @Inject constructor(
                 TelephonyManager.NETWORK_TYPE_UMTS -> "3G"
                 TelephonyManager.NETWORK_TYPE_EDGE,
                 TelephonyManager.NETWORK_TYPE_GPRS -> "2G"
-                else -> "Cellular"
+                else -> null
             }
         } catch (_: SecurityException) {
-            "Cellular"
+            null
         }
     }
 
@@ -286,10 +294,31 @@ class AndroidTelemetrySource @Inject constructor(
 
     private fun updateBluetoothPosture() {
         val adapter: BluetoothAdapter? = bluetoothManager?.adapter
-        val isEnabled = adapter?.isEnabled == true
-        val isDiscoverable = adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE
+        val hasConnectPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        val isEnabled = if (hasConnectPermission) {
+            try {
+                adapter?.isEnabled == true
+            } catch (_: SecurityException) {
+                false
+            }
+        } else {
+            false
+        }
+        val isDiscoverable = if (hasConnectPermission) {
+            try {
+                adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE
+            } catch (_: SecurityException) {
+                false
+            }
+        } else {
+            false
+        }
         val isConnected = try {
-            isEnabled && (
+            hasConnectPermission && isEnabled && (
                 adapter?.getProfileConnectionState(android.bluetooth.BluetoothProfile.HEADSET) == BluetoothAdapter.STATE_CONNECTED ||
                 adapter?.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP) == BluetoothAdapter.STATE_CONNECTED
             )
@@ -298,7 +327,7 @@ class AndroidTelemetrySource @Inject constructor(
         }
 
         _bluetoothScanResults.value = BluetoothScanResults(
-            deviceCount = if (isConnected) 1 else 0,
+            deviceCount = null,
             isEnabled = isEnabled,
             isDiscoverable = isDiscoverable,
             isConnected = isConnected

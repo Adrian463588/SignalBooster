@@ -6,18 +6,22 @@ import com.signalbooster.app.domain.interfaces.NetworkMonitor
 import com.signalbooster.app.domain.interfaces.ProbeType
 import com.signalbooster.app.domain.interfaces.QualityProbe
 import com.signalbooster.app.domain.interfaces.RecoveryCoordinator
+import com.signalbooster.app.domain.interfaces.RecoveryResultStatus
 import com.signalbooster.app.domain.interfaces.SettingsRepository
 import com.signalbooster.app.domain.models.CapabilityState
 import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.QualityMetrics
 import com.signalbooster.app.domain.models.RecoveryState
+import com.signalbooster.app.domain.models.SettingsDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -34,6 +38,9 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    private val _effects = MutableSharedFlow<DashboardEffect>(extraBufferCapacity = 1)
+    val effects = _effects.asSharedFlow()
 
     private var adaptiveMonitoringJob: Job? = null
 
@@ -106,19 +113,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun flushDnsAndSockets() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRecovering = true) }
-            val success = recoveryCoordinator.invalidateDnsAndSockets()
-            _uiState.update {
-                it.copy(
-                    isRecovering = false,
-                    lastRecoveryMessage = if (success) "DNS caches refreshed & sockets reset" else "DNS flush failed"
-                )
-            }
-            runQualityProbe(ProbeType.DNS)
-        }
-    }
+    fun recheckConnection() = runQualityProbe(ProbeType.HTTP)
 
     private fun startAdaptiveProbes() {
         adaptiveMonitoringJob?.cancel()
@@ -167,6 +162,11 @@ class DashboardViewModel @Inject constructor(
                     lastRecoveryMessage = result.actionTaken + (result.details?.let { d -> ": $d" } ?: "")
                 )
             }
+            if (result.status == RecoveryResultStatus.SETTINGS_HANDOFF_READY) {
+                result.settingsDestination?.let { destination ->
+                    _effects.emit(DashboardEffect.OpenSettings(destination))
+                }
+            }
             refreshRecommendation(_uiState.value.networkSnapshot)
         }
     }
@@ -175,6 +175,10 @@ class DashboardViewModel @Inject constructor(
         val rec = recoveryCoordinator.getRecommendation(snapshot, metrics)
         _uiState.update { it.copy(currentRecommendation = rec) }
     }
+}
+
+sealed interface DashboardEffect {
+    data class OpenSettings(val destination: SettingsDestination) : DashboardEffect
 }
 
 data class DashboardUiState(

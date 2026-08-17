@@ -1,7 +1,5 @@
 package com.signalbooster.app.presentation.crowdmode
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,27 +34,36 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.signalbooster.app.domain.models.SettingsDestination
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrowdModeScreen(
-    viewModel: CrowdModeViewModel
+    viewModel: CrowdModeViewModel,
+    onOpenSettings: (SettingsDestination) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is CrowdModeEffect.OpenSettings -> onOpenSettings(effect.destination)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -207,17 +214,7 @@ fun CrowdModeScreen(
                             Button(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    runCatching {
-                                        context.startActivity(Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS).apply {
-                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                        })
-                                    }.onFailure {
-                                        runCatching {
-                                            context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
-                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                            })
-                                        }
-                                    }
+                                    viewModel.openRatSettings()
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -307,7 +304,7 @@ fun CrowdModeScreen(
 
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "Signal: ${band.signalRssi} dBm  |  Channel / PCI: ${band.channel}",
+                                        text = "Signal: ${band.signalRssi?.let { "$it dBm" } ?: "Unavailable"}  |  Channel / PCI: ${band.channel ?: "Unavailable"}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -379,17 +376,7 @@ fun CrowdModeScreen(
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            runCatching {
-                                context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                })
-                            }.onFailure {
-                                runCatching {
-                                    context.startActivity(Intent(Settings.ACTION_SETTINGS).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    })
-                                }
-                            }
+                            viewModel.openWirelessSettings()
                         },
                         modifier = Modifier
                             .fillMaxWidth()

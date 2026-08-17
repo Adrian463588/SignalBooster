@@ -56,7 +56,7 @@ class AndroidNetworkMonitor @Inject constructor(
                 .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
                 .build()
             
-            networkCallback = object : ConnectivityManager.NetworkCallback() {
+            val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     coroutineScope.launch {
                         updateNetworkSnapshot(network)
@@ -89,7 +89,8 @@ class AndroidNetworkMonitor @Inject constructor(
                 }
             }
             
-            cm.registerNetworkCallback(networkRequest, networkCallback!!)
+            networkCallback = callback
+            cm.registerNetworkCallback(networkRequest, callback)
             isMonitoringActive = true
             
             // Query initial state

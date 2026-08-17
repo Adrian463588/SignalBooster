@@ -59,7 +59,8 @@ data class CellularMetrics(
     val operator: String? = null,
     val cellId: Long? = null,
     val pci: Int? = null,
-    val isCongested: Boolean = false    // Inferred cell sector congestion
+    val isCongested: Boolean = false,   // Inferred cell sector congestion
+    val hasCongestionEvidence: Boolean = false
 )
 
 data class WifiMetrics(
@@ -71,7 +72,8 @@ data class WifiMetrics(
 )
 
 data class BluetoothScanResults(
-    val deviceCount: Int,
+    /** Null until an actual, permissioned Bluetooth scan provides a count. */
+    val deviceCount: Int? = null,
     val isEnabled: Boolean = false,
     val isDiscoverable: Boolean = false,
     val isConnected: Boolean = false

@@ -30,9 +30,12 @@ import com.signalbooster.app.presentation.privacy.PrivacyScreen
 import com.signalbooster.app.presentation.privacy.PrivacyViewModel
 import com.signalbooster.app.presentation.settings.SettingsScreen
 import com.signalbooster.app.presentation.settings.SettingsViewModel
+import com.signalbooster.app.domain.models.SettingsDestination
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    onOpenSettings: (SettingsDestination) -> Unit
+) {
     val navController = rememberNavController()
     val items = listOf(
         Screen.Dashboard,
@@ -81,7 +84,10 @@ fun AppNavigation() {
         ) {
             composable(Screen.Dashboard.route) {
                 val viewModel: DashboardViewModel = hiltViewModel()
-                DashboardScreen(viewModel = viewModel)
+                DashboardScreen(
+                    viewModel = viewModel,
+                    onOpenSettings = onOpenSettings
+                )
             }
             composable(Screen.Diagnostics.route) {
                 val viewModel: DiagnosticsViewModel = hiltViewModel()
@@ -89,7 +95,10 @@ fun AppNavigation() {
             }
             composable(Screen.CrowdMode.route) {
                 val viewModel: CrowdModeViewModel = hiltViewModel()
-                CrowdModeScreen(viewModel = viewModel)
+                CrowdModeScreen(
+                    viewModel = viewModel,
+                    onOpenSettings = onOpenSettings
+                )
             }
             composable(Screen.Privacy.route) {
                 val viewModel: PrivacyViewModel = hiltViewModel()

@@ -25,8 +25,8 @@ class QualityMetricsTest {
             throughputMbps = 0.1f
         )
 
-        val maxScore = maxMetrics.calculateQoEScore()
-        val minScore = minMetrics.calculateQoEScore()
+        val maxScore = requireNotNull(maxMetrics.calculateQoEScore())
+        val minScore = requireNotNull(minMetrics.calculateQoEScore())
 
         assertTrue("Max QoE score should be bounded at 100, was $maxScore", maxScore <= 100)
         assertTrue("Max QoE score should be high, was $maxScore", maxScore >= 90)
@@ -40,6 +40,7 @@ class QualityMetricsTest {
 
         assertEquals(ProbeScope.UNKNOWN, metrics.probeScope)
         assertEquals(MeasurementConfidence.LOW, metrics.measurementConfidence)
+        assertEquals(null, metrics.calculateQoEScore())
     }
 
     @Test
@@ -59,8 +60,8 @@ class QualityMetricsTest {
             bufferbloatDeltaMs = 250 // Severe bufferbloat queue delay
         )
 
-        val normalScore = normalMetrics.calculateQoEScore()
-        val bloatedScore = bloatedMetrics.calculateQoEScore()
+        val normalScore = requireNotNull(normalMetrics.calculateQoEScore())
+        val bloatedScore = requireNotNull(bloatedMetrics.calculateQoEScore())
 
         assertTrue("Bloated connection score ($bloatedScore) should be lower than normal ($normalScore)", bloatedScore < normalScore)
         assertEquals(normalScore - 15, bloatedScore)

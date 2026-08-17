@@ -65,6 +65,17 @@ data class BandSteeringAdvice(
 )
 
 /**
+ * Android Settings destination used for user-controlled network recovery.
+ * The domain exposes a destination, not an Android Intent, so UI and platform
+ * side effects remain outside the domain layer.
+ */
+enum class SettingsDestination {
+    NETWORK_OPERATOR,
+    WIFI,
+    WIRELESS
+}
+
+/**
  * Multi-stage recovery state machine states per Docs1.md lines 598-642.
  */
 enum class RecoveryState {
@@ -128,10 +139,22 @@ data class QualityMetrics(
     val measurementConfidence: MeasurementConfidence = MeasurementConfidence.LOW,
     val timestamp: Instant = Instant.now()
 ) {
+    /** Returns true only when at least one quality field came from a probe. */
+    fun hasMeasuredValues(): Boolean =
+        latencyRttMs != null || jitterMs != null || lossRatio != null ||
+            throughputMbps != null || bufferbloatDeltaMs != null
+
     /**
      * Calculates a composite Quality of Experience score (0 - 100).
+     *
+     * Returns null when no measured quality value exists. An absent probe must
+     * never be rendered as a fabricated score.
      */
-    fun calculateQoEScore(): Int {
+    fun calculateQoEScore(): Int? {
+        if (!hasMeasuredValues()) {
+            return null
+        }
+
         var score = 70.0
         
         latencyRttMs?.let { latency ->

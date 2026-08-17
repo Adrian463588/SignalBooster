@@ -65,6 +65,7 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,15 +83,25 @@ import com.signalbooster.app.domain.models.NetworkAction
 import com.signalbooster.app.domain.models.NetworkValidation
 import com.signalbooster.app.domain.models.QualityMetrics
 import com.signalbooster.app.domain.models.SignalQuality
+import com.signalbooster.app.domain.models.SettingsDestination
 import com.signalbooster.app.domain.models.Transport
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel
+    viewModel: DashboardViewModel,
+    onOpenSettings: (SettingsDestination) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is DashboardEffect.OpenSettings -> onOpenSettings(effect.destination)
+            }
+        }
+    }
 
     // Pulse animation for active monitoring
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_transition")
@@ -319,12 +330,12 @@ fun DashboardScreen(
                 // 2. Measured QoE Score & Performance Gauge Card
                 val qoeScore = uiState.qualityMetrics.calculateQoEScore()
                 val animatedScoreNumber by animateIntAsState(
-                    targetValue = qoeScore,
+                    targetValue = qoeScore ?: 0,
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "score_number"
                 )
                 val animatedScoreProgress by animateFloatAsState(
-                    targetValue = qoeScore / 100f,
+                    targetValue = (qoeScore ?: 0) / 100f,
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "score_progress"
                 )
@@ -372,6 +383,7 @@ fun DashboardScreen(
                                     progress = { animatedScoreProgress },
                                     modifier = Modifier.fillMaxSize(),
                                     color = when {
+                                        qoeScore == null -> MaterialTheme.colorScheme.surfaceVariant
                                         qoeScore >= 80 -> MaterialTheme.colorScheme.primary
                                         qoeScore >= 50 -> MaterialTheme.colorScheme.tertiary
                                         else -> MaterialTheme.colorScheme.error
@@ -381,7 +393,7 @@ fun DashboardScreen(
                                     strokeCap = StrokeCap.Round
                                 )
                                 Text(
-                                    text = "$animatedScoreNumber",
+                                    text = qoeScore?.let { "$animatedScoreNumber" } ?: "—",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -392,6 +404,7 @@ fun DashboardScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = when {
+                                        qoeScore == null -> "Awaiting measured probe"
                                         qoeScore >= 80 -> "Optimal Performance"
                                         qoeScore >= 50 -> "Fair / Acceptable"
                                         else -> "Degraded Connection"

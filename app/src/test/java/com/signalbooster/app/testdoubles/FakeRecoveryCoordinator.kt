@@ -2,6 +2,7 @@ package com.signalbooster.app.testdoubles
 
 import com.signalbooster.app.domain.interfaces.RecoveryCoordinator
 import com.signalbooster.app.domain.interfaces.RecoveryResult
+import com.signalbooster.app.domain.interfaces.RecoveryResultStatus
 import com.signalbooster.app.domain.models.ConfidenceLevel
 import com.signalbooster.app.domain.models.NetworkAction
 import com.signalbooster.app.domain.models.NetworkRecommendation
@@ -25,7 +26,7 @@ class FakeRecoveryCoordinator : RecoveryCoordinator {
     )
 
     var recoveryResultToReturn: RecoveryResult = RecoveryResult(
-        success = true,
+        status = RecoveryResultStatus.NO_ACTION_REQUIRED,
         actionTaken = "Stay on validated network",
         details = null,
         newState = NetworkSnapshot.EMPTY
@@ -40,9 +41,4 @@ class FakeRecoveryCoordinator : RecoveryCoordinator {
         currentState: NetworkSnapshot
     ): RecoveryResult = recoveryResultToReturn
 
-    override suspend fun invalidateDnsAndSockets(): Boolean {
-        _recoveryState.value = RecoveryState.RECOVERING
-        _recoveryState.value = RecoveryState.HEALTHY
-        return true
-    }
 }

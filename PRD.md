@@ -408,6 +408,13 @@ The screen shall distinguish:
 
 Every privileged action must be allowlisted, user-confirmed, typed, auditable, and reversible where possible. No arbitrary command text may come from the UI.
 
+RAT selection and network recovery in the normal application shall use only the
+standard Android Settings hand-offs `ACTION_NETWORK_OPERATOR_SETTINGS`,
+`ACTION_WIFI_SETTINGS`, and `ACTION_WIRELESS_SETTINGS`. The optional
+`Settings.EXTRA_SUB_ID` identifies the active data subscription when available.
+The application must not claim that a Settings hand-off changed the radio until
+fresh telemetry confirms the resulting state.
+
 ### FR-07 — Passive privacy posture
 
 The privacy screen shall expose, where supported:
@@ -498,7 +505,11 @@ All screens must support loading, available, unavailable, permission-required, f
 | Future microphone capture | `RECORD_AUDIO` plus correct microphone foreground-service declarations | Not in version 1; requires a separate privacy and safety review.                       |
 | Direct modem forcing      | Privileged API/carrier privilege                                       | Not assumed or requested by the normal app.                                            |
 
-The manifest must not declare `MODIFY_PHONE_STATE`, `BLUETOOTH_PRIVILEGED`, or other hidden/system permissions for the normal application.
+The manifest may declare `MODIFY_PHONE_STATE` and `BLUETOOTH_PRIVILEGED` for
+capability inspection and privileged deployment compatibility, but an ordinary
+third-party installation must not request or assume either permission. Missing
+grants remain `CAPABILITY_UNAVAILABLE`; they never enable direct RAT switching,
+Bluetooth pairing without user consent, or arbitrary privileged execution.
 
 ## 11. Privacy and data requirements
 

@@ -1,11 +1,8 @@
 package com.signalbooster.app.platform
 
-import android.content.Context
-import android.content.Intent
-import android.provider.Settings
-import android.telephony.SubscriptionManager
 import com.signalbooster.app.domain.interfaces.RecoveryCoordinator
 import com.signalbooster.app.domain.interfaces.RecoveryResult
+import com.signalbooster.app.domain.interfaces.RecoveryResultStatus
 import com.signalbooster.app.domain.models.ConfidenceLevel
 import com.signalbooster.app.domain.models.EvidenceImpact
 import com.signalbooster.app.domain.models.MeasurementConfidence
@@ -16,15 +13,13 @@ import com.signalbooster.app.domain.models.NetworkValidation
 import com.signalbooster.app.domain.models.QualityMetrics
 import com.signalbooster.app.domain.models.RecommendationEvidence
 import com.signalbooster.app.domain.models.RecoveryState
+import com.signalbooster.app.domain.models.SettingsDestination
 import com.signalbooster.app.domain.models.Transport
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.net.InetAddress
-import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,9 +29,7 @@ import javax.inject.Singleton
  * Complies with AGENTS.md section 5 & PRD FR-03/FR-04.
  */
 @Singleton
-class RealRecoveryCoordinator @Inject constructor(
-    @ApplicationContext private val context: Context
-) : RecoveryCoordinator {
+class RealRecoveryCoordinator @Inject constructor() : RecoveryCoordinator {
 
     private val _recoveryState = MutableStateFlow(RecoveryState.HEALTHY)
     override val recoveryState: Flow<RecoveryState> = _recoveryState.asStateFlow()
@@ -45,125 +38,23 @@ class RealRecoveryCoordinator @Inject constructor(
     private var lastRecommendationTime: Long = 0L
     private val hysteresisDwellMillis = 30000L // 30s hysteresis cooldown per Docs1.md
 
-    override suspend fun invalidateDnsAndSockets(): Boolean = withContext(Dispatchers.IO) {
-        _recoveryState.value = RecoveryState.RECOVERING
-        return@withContext try {
-            // Trigger DNS resolver cache refresh across allowlisted root nameservers
-            InetAddress.getAllByName("connectivitycheck.gstatic.com")
-            InetAddress.getAllByName("1.1.1.1")
-            _recoveryState.value = RecoveryState.VALIDATING
-            true
-        } catch (_: Exception) {
-            _recoveryState.value = RecoveryState.DEGRADED
-            false
-        }
-    }
-
-    override suspend fun attemptRecovery(currentState: NetworkSnapshot): RecoveryResult = withContext(Dispatchers.Default) {
+    override suspend fun attemptRecovery(currentState: NetworkSnapshot): RecoveryResult {
         _recoveryState.value = RecoveryState.VERIFYING
-        
-        // Stage 1: Invalidate internal DNS resolution and socket caches
-        invalidateDnsAndSockets()
-
         _recoveryState.value = RecoveryState.RECOVERING
-        val result = when {
-            currentState.isCaptivePortal -> {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    data = android.net.Uri.parse("http://connectivitycheck.gstatic.com/generate_204")
-                }
-                try {
-                    context.startActivity(intent)
-                    RecoveryResult(
-                        success = true,
-                        actionTaken = "Opened Captive Portal Authentication",
-                        details = "Directed user to captive portal verification web page.",
-                        newState = currentState
-                    )
-                } catch (e: Exception) {
-                    RecoveryResult(
-                        success = false,
-                        actionTaken = "Failed to launch captive portal login",
-                        details = e.localizedMessage,
-                        newState = currentState
-                    )
-                }
-            }
-            currentState.transport == Transport.WIFI && currentState.validation != NetworkValidation.VALIDATED -> {
-                val intent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                try {
-                    context.startActivity(intent)
-                    RecoveryResult(
-                        success = true,
-                        actionTaken = "Opened Wi-Fi Settings",
-                        details = "Directed user to Android Wi-Fi settings for manual network selection/reconnect.",
-                        newState = currentState
-                    )
-                } catch (e: Exception) {
-                    // Fallback to general settings
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-                        RecoveryResult(success = true, actionTaken = "Opened System Settings", details = "Fallback to system settings.", newState = currentState)
-                    } catch (fallbackEx: Exception) {
-                        RecoveryResult(success = false, actionTaken = "Failed to open Wi-Fi settings", details = e.localizedMessage, newState = currentState)
-                    }
-                }
-            }
-            currentState.transport == Transport.CELLULAR && currentState.validation != NetworkValidation.VALIDATED -> {
-                val defaultSubId = try {
-                    SubscriptionManager.getDefaultDataSubscriptionId()
-                } catch (_: Exception) {
-                    SubscriptionManager.INVALID_SUBSCRIPTION_ID
-                }
-                val intent = Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    if (defaultSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                        putExtra(Settings.EXTRA_SUB_ID, defaultSubId)
-                    }
-                }
-                try {
-                    context.startActivity(intent)
-                    RecoveryResult(
-                        success = true,
-                        actionTaken = "Opened Mobile Network Settings",
-                        details = "Directed user to cellular network operator settings.",
-                        newState = currentState
-                    )
-                } catch (e: Exception) {
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-                        RecoveryResult(success = true, actionTaken = "Opened Wireless Settings", details = "Fallback to wireless settings.", newState = currentState)
-                    } catch (fallbackEx: Exception) {
-                        RecoveryResult(success = false, actionTaken = "Failed to open cellular settings", details = e.localizedMessage, newState = currentState)
-                    }
-                }
-            }
-            else -> {
-                val intent = Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                try {
-                    context.startActivity(intent)
-                    RecoveryResult(
-                        success = true,
-                        actionTaken = "Opened Network & Internet Settings",
-                        details = "Handoff to Android network management.",
-                        newState = currentState
-                    )
-                } catch (e: Exception) {
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-                        RecoveryResult(success = true, actionTaken = "Opened System Settings", details = "Fallback to system settings.", newState = currentState)
-                    } catch (fallbackEx: Exception) {
-                        RecoveryResult(success = false, actionTaken = "No recovery action available", details = "Current network state requires no automated hand-off.", newState = currentState)
-                    }
-                }
-            }
+        val destination = when {
+            currentState.transport == Transport.WIFI -> SettingsDestination.WIFI
+            currentState.transport == Transport.CELLULAR -> SettingsDestination.NETWORK_OPERATOR
+            else -> SettingsDestination.WIRELESS
         }
-        _recoveryState.value = if (result.success) RecoveryState.VALIDATING else RecoveryState.DEGRADED
-        result
+
+        _recoveryState.value = RecoveryState.VALIDATING
+        return RecoveryResult(
+            status = RecoveryResultStatus.SETTINGS_HANDOFF_READY,
+            actionTaken = "Prepared Android Settings hand-off",
+            details = "The user must complete network selection or recovery in Android Settings.",
+            newState = currentState,
+            settingsDestination = destination
+        )
     }
 
     override suspend fun getRecommendation(
@@ -172,7 +63,10 @@ class RealRecoveryCoordinator @Inject constructor(
     ): NetworkRecommendation = withContext(Dispatchers.Default) {
         val evidenceList = mutableListOf<RecommendationEvidence>()
 
-        if (currentState.validation == NetworkValidation.VALIDATED && (qualityMetrics?.lossRatio ?: 0f) <= 0.05f) {
+        if (currentState.validation == NetworkValidation.VALIDATED &&
+            qualityMetrics?.hasMeasuredValues() == true &&
+            qualityMetrics.lossRatio?.let { it <= 0.05f } == true
+        ) {
             _recoveryState.value = RecoveryState.HEALTHY
         }
 
@@ -202,11 +96,7 @@ class RealRecoveryCoordinator @Inject constructor(
                     impact = EvidenceImpact.NEGATIVE
                 )
             )
-            val suggestedAction = when (currentState.transport) {
-                Transport.WIFI -> NetworkAction.SWITCH_TO_CELLULAR
-                Transport.CELLULAR -> NetworkAction.SWITCH_TO_WIFI
-                else -> NetworkAction.RETRY_CONNECTION
-            }
+            val suggestedAction = NetworkAction.OPEN_SETTINGS
             return@withContext NetworkRecommendation(
                 action = suggestedAction,
                 evidence = evidenceList,
@@ -300,12 +190,12 @@ class RealRecoveryCoordinator @Inject constructor(
                 )
             }
             else -> {
-                if (positiveCount == 0 && evidenceList.isEmpty()) {
+                if (positiveCount == 0 && evidenceList.isEmpty() && qualityMetrics?.hasMeasuredValues() != true) {
                     evidenceList.add(
                         RecommendationEvidence(
                             metric = "Network Transport",
                             value = "${currentState.transport} (${currentState.validation})",
-                            impact = EvidenceImpact.POSITIVE
+                            impact = EvidenceImpact.NEUTRAL
                         )
                     )
                 }
@@ -317,7 +207,11 @@ class RealRecoveryCoordinator @Inject constructor(
                         MeasurementConfidence.MEDIUM -> ConfidenceLevel.MEDIUM
                         else -> ConfidenceLevel.LOW
                     },
-                    limitation = "Active connection is currently stable and validated."
+                    limitation = if (qualityMetrics?.hasMeasuredValues() != true) {
+                        "No QoE probe is available; stability is based on Android validation only."
+                    } else {
+                        "Active connection is currently stable and validated."
+                    }
                 )
             }
         }
@@ -336,4 +230,3 @@ class RealRecoveryCoordinator @Inject constructor(
         freshRecommendation
     }
 }
-

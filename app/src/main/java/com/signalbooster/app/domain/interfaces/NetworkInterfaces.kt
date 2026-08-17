@@ -5,6 +5,7 @@ import com.signalbooster.app.domain.models.NetworkRecommendation
 import com.signalbooster.app.domain.models.NetworkSnapshot
 import com.signalbooster.app.domain.models.QualityMetrics
 import com.signalbooster.app.domain.models.RecoveryState
+import com.signalbooster.app.domain.models.SettingsDestination
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -87,16 +88,23 @@ interface RecoveryCoordinator {
      * Get recommended action for current network state.
      */
     suspend fun getRecommendation(currentState: NetworkSnapshot, qualityMetrics: QualityMetrics? = null): NetworkRecommendation
+}
 
-    /**
-     * Invalidate internal DNS resolution caches and reset active socket connections.
-     */
-    suspend fun invalidateDnsAndSockets(): Boolean
+enum class RecoveryResultStatus {
+    SETTINGS_HANDOFF_READY,
+    NO_ACTION_REQUIRED,
+    FAILED,
+    CAPABILITY_UNAVAILABLE
 }
 
 data class RecoveryResult(
-    val success: Boolean,
+    val status: RecoveryResultStatus,
     val actionTaken: String,
     val details: String? = null,
-    val newState: NetworkSnapshot
-)
+    val newState: NetworkSnapshot,
+    val settingsDestination: SettingsDestination? = null
+) {
+    val isSuccessful: Boolean
+        get() = status == RecoveryResultStatus.SETTINGS_HANDOFF_READY ||
+            status == RecoveryResultStatus.NO_ACTION_REQUIRED
+}

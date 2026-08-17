@@ -2,15 +2,18 @@ package com.signalbooster.app.presentation.crowdmode
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.signalbooster.app.domain.interfaces.NetworkMonitor
+import com.signalbooster.app.domain.interfaces.CellularMetrics
 import com.signalbooster.app.domain.interfaces.RadioTelemetrySource
+import com.signalbooster.app.domain.interfaces.WifiMetrics
 import com.signalbooster.app.domain.models.BandSteeringAdvice
-import com.signalbooster.app.domain.models.ConfidenceLevel
 import com.signalbooster.app.domain.models.CongestionState
-import com.signalbooster.app.domain.models.Transport
+import com.signalbooster.app.domain.models.ConfidenceLevel
+import com.signalbooster.app.domain.models.SettingsDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
@@ -19,12 +22,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CrowdModeViewModel @Inject constructor(
-    private val networkMonitor: NetworkMonitor,
     private val radioTelemetrySource: RadioTelemetrySource
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CrowdModeUiState())
     val uiState: StateFlow<CrowdModeUiState> = _uiState.asStateFlow()
+
+    private val _effects = MutableSharedFlow<CrowdModeEffect>(extraBufferCapacity = 1)
+    val effects = _effects.asSharedFlow()
 
     init {
         loadCrowdAnalysis()
@@ -33,133 +38,149 @@ class CrowdModeViewModel @Inject constructor(
     fun loadCrowdAnalysis() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-
-            // Combine latest telemetry streams cleanly
             combine(
                 radioTelemetrySource.wifiMetrics,
-                radioTelemetrySource.cellularMetrics,
-                networkMonitor.networkSnapshot
-            ) { wifi, cellular, snapshot ->
-                Triple(wifi, cellular, snapshot)
-            }.collect { (wifi, cellular, snapshot) ->
-                val bandObs = mutableListOf<BandObservation>()
-                var bandSteeringAdvice: BandSteeringAdvice? = null
-                
-                // 1. Wi-Fi band heuristic
-                wifi.frequency?.let { freq ->
-                    val is5Ghz = freq > 5000
-                    val bandLabel = if (is5Ghz) "5 GHz Wi-Fi (Clean Spectrum)" else "2.4 GHz Wi-Fi (Crowded Spectrum)"
-                    val congestionRisk = if (!is5Ghz) "HIGH (Crowded 2.4 GHz spectrum)" else "LOW (High Throughput 5 GHz)"
-                    
-                    bandObs.add(
-                        BandObservation(
-                            bandName = bandLabel,
-                            frequencyMhz = freq,
-                            channel = wifi.channel ?: 0,
-                            signalRssi = wifi.rssi ?: -100,
-                            congestionRisk = congestionRisk,
-                            recommendation = if (!is5Ghz) "Recommend switching to 5GHz Wi-Fi AP or Cellular LTE" else "Optimal 5GHz Wi-Fi channel in use"
-                        )
-                    )
-                }
-
-                // 2. Cellular band heuristic
-                val tech = cellular.displayNetworkType ?: cellular.technology ?: "Cellular"
-                val rsrp = cellular.ssRsrp ?: cellular.rsrp ?: -110
-                val sinr = cellular.ssSinr ?: cellular.rssnr ?: 15
-                val rsrq = cellular.ssRsrq ?: cellular.rsrq ?: -10
-                val isCellCongested = cellular.isCongested || (rsrp > -100 && (sinr < 5 || rsrq < -14))
-
-                val cellRisk = when {
-                    isCellCongested -> "HIGH (Cell Sector Saturation / Low SINR)"
-                    rsrp < -110 -> "MEDIUM (Weak Cell Coverage)"
-                    else -> "LOW (Nominal Signal & Clean SINR)"
-                }
-
-                val channelOrPci = cellular.pci ?: cellular.earfcn ?: cellular.nrarfcn ?: 0
-                val bandDetails = if (cellular.bands.isNotEmpty()) " (Bands: ${cellular.bands.joinToString(", ")})" else ""
-                val cqiDetails = cellular.cqi?.let { " [CQI: $it/15]" } ?: ""
-
-                bandObs.add(
-                    BandObservation(
-                        bandName = "$tech$bandDetails$cqiDetails",
-                        frequencyMhz = cellular.earfcn ?: cellular.nrarfcn ?: 0,
-                        channel = channelOrPci,
-                        signalRssi = rsrp,
-                        congestionRisk = cellRisk,
-                        recommendation = if (isCellCongested) {
-                            "Cell sector saturated. Fallback to 4G LTE CA or alternate Wi-Fi recommended"
-                        } else {
-                            "Cellular link quality is nominal"
-                        }
-                    )
-                )
-
-                // 3. 4G vs 5G Band Steering Decision Engine
-                val dynamicLteBands = if (cellular.bands.isNotEmpty()) {
-                    cellular.bands.joinToString(", ", prefix = "LTE Band ")
-                } else {
-                    null
-                }
-                val dynamicNrBands = if (cellular.bands.isNotEmpty()) {
-                    cellular.bands.joinToString(", ", prefix = "NR Band n")
-                } else {
-                    null
-                }
-
-                if (tech.contains("5G", ignoreCase = true) && isCellCongested) {
-                    bandSteeringAdvice = BandSteeringAdvice(
-                        currentRat = tech,
-                        recommendedRat = "4G LTE (Carrier Aggregation)",
-                        targetBand = dynamicLteBands ?: "LTE Carrier Aggregation",
-                        reason = "5G NR cell carrier is congested (SINR ${sinr}dB, RSRQ ${rsrq}dB). 4G LTE provides lower packet contention.",
-                        confidence = ConfidenceLevel.HIGH
-                    )
-                } else if (tech.contains("LTE", ignoreCase = true) && !isCellCongested && rsrp > -85) {
-                    bandSteeringAdvice = BandSteeringAdvice(
-                        currentRat = "4G LTE",
-                        recommendedRat = "5G NR (High Capacity)",
-                        targetBand = dynamicNrBands ?: "5G NR Spectrum",
-                        reason = "Local RF environment is clean. 5G NR provides higher burst throughput.",
-                        confidence = ConfidenceLevel.MEDIUM
-                    )
-                }
-
-                // 4. Synthesize crowd recommendations
-                val recs = mutableListOf<CrowdRecommendation>()
-                if (bandObs.any { it.congestionRisk.startsWith("HIGH") }) {
-                    recs.add(
-                        CrowdRecommendation(
-                            title = "High Spectrum Density Detected",
-                            action = if (bandSteeringAdvice != null) "Apply Band Steering Advice (Switch Network Mode)" else "Switch to 5GHz AP or Toggle Airplane Mode",
-                            confidence = ConfidenceLevel.HIGH,
-                            evidence = "High power (RSRP ${rsrp}dBm) with degraded SINR (${sinr}dB) and channel overlap."
-                        )
-                    )
-                } else {
-                    recs.add(
-                        CrowdRecommendation(
-                            title = "Spectrum Environment Nominal",
-                            action = "Maintain Current Connection",
-                            confidence = ConfidenceLevel.HIGH,
-                            evidence = "No extreme multi-device saturation or channel overlap detected."
-                        )
-                    )
-                }
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        bandObservations = bandObs,
-                        recommendations = recs,
-                        bandSteeringAdvice = bandSteeringAdvice,
-                        congestionState = if (isCellCongested) CongestionState.SPECTRUM_CONGESTION else CongestionState.NOMINAL,
-                        totalBandsAnalyzed = bandObs.size
-                    )
-                }
+                radioTelemetrySource.cellularMetrics
+            ) { wifi, cellular ->
+                analyze(wifi, cellular)
+            }.collect { state ->
+                _uiState.value = state.copy(isLoading = false)
             }
         }
     }
+
+    fun openRatSettings() {
+        _effects.tryEmit(CrowdModeEffect.OpenSettings(SettingsDestination.NETWORK_OPERATOR))
+    }
+
+    fun openWirelessSettings() {
+        _effects.tryEmit(CrowdModeEffect.OpenSettings(SettingsDestination.WIRELESS))
+    }
+
+    private fun analyze(wifi: WifiMetrics, cellular: CellularMetrics): CrowdModeUiState {
+        val observations = buildList {
+            if (wifi.frequency != null || wifi.channel != null || wifi.rssi != null) {
+                add(
+                    BandObservation(
+                        bandName = wifi.frequency?.let { frequency ->
+                            if (frequency > 5000) "5 GHz Wi-Fi" else "2.4 GHz Wi-Fi"
+                        } ?: "Wi-Fi frequency unavailable",
+                        frequencyMhz = wifi.frequency,
+                        channel = wifi.channel,
+                        signalRssi = wifi.rssi,
+                        congestionRisk = "UNKNOWN (QoE probe required)",
+                        recommendation = "Run a bounded quality probe before choosing a connection."
+                    )
+                )
+            }
+
+            val technology = cellular.displayNetworkType ?: cellular.technology
+            val rsrp = cellular.ssRsrp ?: cellular.rsrp
+            val sinr = cellular.ssSinr ?: cellular.rssnr
+            val rsrq = cellular.ssRsrq ?: cellular.rsrq
+            val hasSignalEvidence = rsrp != null || sinr != null || rsrq != null
+            val hasCellularObservation = technology != null || hasSignalEvidence ||
+                cellular.bands.isNotEmpty() || cellular.earfcn != null || cellular.nrarfcn != null
+
+            if (hasCellularObservation) {
+                val isCongested = cellular.hasCongestionEvidence && cellular.isCongested
+                val risk = when {
+                    isCongested -> "HIGH (Measured signal-quality congestion indicators)"
+                    hasSignalEvidence && rsrp != null && rsrp < -110 -> "MEDIUM (Weak observed coverage)"
+                    hasSignalEvidence -> "UNKNOWN (Congestion not established by QoE)"
+                    else -> "UNKNOWN (Insufficient signal data)"
+                }
+                val channelOrPci = cellular.pci ?: cellular.earfcn ?: cellular.nrarfcn
+                val bandDetails = cellular.bands.takeIf { it.isNotEmpty() }
+                    ?.joinToString(", ", prefix = " bands=")
+                val cqiDetails = cellular.cqi?.let { " CQI=$it" } ?: ""
+
+                add(
+                    BandObservation(
+                        bandName = (technology ?: "Cellular telemetry") + (bandDetails ?: "") + cqiDetails,
+                        frequencyMhz = null,
+                        channel = channelOrPci,
+                        signalRssi = rsrp,
+                        congestionRisk = risk,
+                        recommendation = if (isCongested) {
+                            "Use Android operator Settings to let the user review an alternative RAT."
+                        } else {
+                            "Collect QoE measurements before recommending a RAT change."
+                        }
+                    )
+                )
+            }
+        }
+
+        val technology = cellular.displayNetworkType ?: cellular.technology
+        val rsrp = cellular.ssRsrp ?: cellular.rsrp
+        val sinr = cellular.ssSinr ?: cellular.rssnr
+        val rsrq = cellular.ssRsrq ?: cellular.rsrq
+        val isCongested = cellular.hasCongestionEvidence && cellular.isCongested
+
+        val advice = if (technology?.contains("5G", ignoreCase = true) == true && isCongested) {
+            BandSteeringAdvice(
+                currentRat = technology,
+                recommendedRat = "Review 4G/LTE in Android Settings",
+                targetBand = null,
+                reason = "Observed 5G quality indicators suggest congestion" +
+                    listOfNotNull(
+                        sinr?.let { "SINR ${it} dB" },
+                        rsrq?.let { "RSRQ ${it} dB" },
+                        rsrp?.let { "RSRP ${it} dBm" }
+                    ).joinToString(prefix = " (", postfix = ")") +
+                    ". The app cannot force a RAT or band.",
+                confidence = ConfidenceLevel.MEDIUM
+            )
+        } else {
+            null
+        }
+
+        val recommendations = when {
+            advice != null -> listOf(
+                CrowdRecommendation(
+                    title = "Measured cellular degradation",
+                    action = "Review the preferred network in Android Settings",
+                    confidence = advice.confidence,
+                    evidence = advice.reason
+                )
+            )
+            observations.isEmpty() -> listOf(
+                CrowdRecommendation(
+                    title = "Insufficient radio observations",
+                    action = "Enable an available Wi-Fi or cellular connection",
+                    confidence = ConfidenceLevel.LOW,
+                    evidence = "No current radio telemetry was exposed by Android."
+                )
+            )
+            else -> listOf(
+                CrowdRecommendation(
+                    title = "No RAT change established",
+                    action = "Run a bounded quality probe before changing networks",
+                    confidence = ConfidenceLevel.LOW,
+                    evidence = "Radio observations alone do not prove congestion or a better alternative."
+                )
+            )
+        }
+
+        return CrowdModeUiState(
+            bandObservations = observations,
+            recommendations = recommendations,
+            bandSteeringAdvice = advice,
+            congestionState = when {
+                advice != null -> CongestionState.SPECTRUM_CONGESTION
+                cellular.hasCongestionEvidence && cellular.isCongested -> CongestionState.SPECTRUM_CONGESTION
+                rsrp != null && rsrp < -110 -> CongestionState.WEAK_COVERAGE
+                observations.isEmpty() -> CongestionState.UNKNOWN
+                else -> CongestionState.UNKNOWN
+            },
+            totalBandsAnalyzed = observations.size
+        )
+    }
+}
+
+sealed interface CrowdModeEffect {
+    data class OpenSettings(val destination: SettingsDestination) : CrowdModeEffect
 }
 
 data class CrowdModeUiState(
@@ -168,14 +189,14 @@ data class CrowdModeUiState(
     val bandObservations: List<BandObservation> = emptyList(),
     val recommendations: List<CrowdRecommendation> = emptyList(),
     val bandSteeringAdvice: BandSteeringAdvice? = null,
-    val congestionState: CongestionState = CongestionState.NOMINAL
+    val congestionState: CongestionState = CongestionState.UNKNOWN
 )
 
 data class BandObservation(
     val bandName: String,
-    val frequencyMhz: Int,
-    val channel: Int,
-    val signalRssi: Int,
+    val frequencyMhz: Int?,
+    val channel: Int?,
+    val signalRssi: Int?,
     val congestionRisk: String,
     val recommendation: String
 )
