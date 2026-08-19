@@ -128,6 +128,7 @@ SignalBooster/
 ├── .githooks/                      # Shift-Left Pre-Commit Security Guard Hooks
 ├── PRD.md                          # Product Requirements Document
 ├── AGENTS.md                       # Agent & Engineering Guidelines
+├── DESIGN.md                       # Material 3 Expressive & Anti-Slop Directive
 ├── SECURITY.md                     # Security & Vulnerability Disclosure Policy
 ├── build.gradle.kts
 └── settings.gradle.kts

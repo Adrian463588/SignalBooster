@@ -95,235 +95,302 @@ fun DiagnosticsScreen(
                 .padding(paddingValues)
         ) {
             val isTabletOrWide = maxWidth > 600.dp
+            val horizontalPadding = if (isTabletOrWide) 24.dp else 16.dp
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = if (isTabletOrWide) 32.dp else 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. Cellular Telemetry Card with Signal Strength Bar
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            if (isTabletOrWide) {
+                // Adaptive 2-Column Tablet Layout
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = horizontalPadding, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CellTower,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "CELLULAR TELEMETRY",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                text = uiState.cellularMetrics.technology ?: "Cellular",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // RSRP Signal Visual Bar
-                        uiState.cellularMetrics.rsrp?.let { rsrp ->
-                            SignalBar(
-                                label = "LTE Signal Strength (RSRP)",
-                                currentDbm = rsrp,
-                                minDbm = -130,
-                                maxDbm = -60
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
-                        uiState.cellularMetrics.ssRsrp?.let { ssRsrp ->
-                            SignalBar(
-                                label = "5G SS-RSRP",
-                                currentDbm = ssRsrp,
-                                minDbm = -130,
-                                maxDbm = -60
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
-                        DetailRow("Operator", uiState.cellularMetrics.operator ?: "Unavailable")
-                        DetailRow("RAT Type", uiState.cellularMetrics.displayNetworkType ?: uiState.cellularMetrics.technology ?: "Unavailable")
-                        DetailRow("LTE RSRP", uiState.cellularMetrics.rsrp?.let { "$it dBm" } ?: "Unavailable")
-                        DetailRow("LTE RSRQ", uiState.cellularMetrics.rsrq?.let { "$it dB" } ?: "Unavailable")
-                        DetailRow("LTE RSSNR / SINR", uiState.cellularMetrics.rssnr?.let { "$it dB" } ?: "Unavailable")
-                        DetailRow("5G SS-RSRP", uiState.cellularMetrics.ssRsrp?.let { "$it dBm" } ?: "Unavailable")
-                        DetailRow("5G SS-RSRQ", uiState.cellularMetrics.ssRsrq?.let { "$it dB" } ?: "Unavailable")
-                        DetailRow("5G SS-SINR", uiState.cellularMetrics.ssSinr?.let { "$it dB" } ?: "Unavailable")
-                        DetailRow("Channel Quality (CQI)", uiState.cellularMetrics.cqi?.let { "$it / 15" } ?: "Unavailable")
-                        DetailRow("Frequency Channel (ARFCN)", uiState.cellularMetrics.nrarfcn?.let { "NR $it" } ?: uiState.cellularMetrics.earfcn?.let { "EARFCN $it" } ?: "Unavailable")
-                        DetailRow("Operating Bands", if (uiState.cellularMetrics.bands.isNotEmpty()) uiState.cellularMetrics.bands.joinToString(", ", prefix = "Band ") else "Unavailable")
-                        DetailRow("Channel Bandwidth", uiState.cellularMetrics.bandwidthKhz?.let { "${it / 1000} MHz" } ?: "Unavailable")
-                        DetailRow("Physical Cell ID (PCI)", uiState.cellularMetrics.pci?.toString() ?: "Unavailable")
-                        DetailRow("Cell Sector State", if (uiState.cellularMetrics.isCongested) "High Congestion / Saturated" else "Nominal / Clear")
+                    // Left Column: Cellular & Wi-Fi Telemetry Cards
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CellularTelemetryCard(uiState = uiState)
+                        WifiTelemetryCard(uiState = uiState)
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                }
 
-                // 2. Wi-Fi Telemetry Card with RSSI Signal Bar
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Wifi,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "WI-FI TELEMETRY",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        uiState.wifiMetrics.rssi?.let { rssi ->
-                            SignalBar(
-                                label = "Wi-Fi RSSI",
-                                currentDbm = rssi,
-                                minDbm = -95,
-                                maxDbm = -30
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
-                        DetailRow("SSID (Redacted)", uiState.wifiMetrics.ssid ?: "Unavailable")
-                        DetailRow("RSSI", uiState.wifiMetrics.rssi?.let { "$it dBm" } ?: "Unavailable")
-                        DetailRow("Frequency", uiState.wifiMetrics.frequency?.let { "$it MHz" } ?: "Unavailable")
-                        DetailRow("Channel", uiState.wifiMetrics.channel?.toString() ?: "Unavailable")
-                        DetailRow("Link Speed", uiState.wifiMetrics.linkSpeed?.let { "$it Mbps" } ?: "Unavailable")
-                    }
-                }
-
-                // 3. Network Quality Probes Card with Responsive FlowRow
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = "MANUAL NETWORK PROBES",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Runs isolated network probes to benchmark latency, jitter, loss, and speed.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Responsive FlowRow for 4 Probe Buttons
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            maxItemsInEachRow = if (isTabletOrWide) 4 else 2
-                        ) {
-                            ProbeButton("DNS", ProbeType.DNS, uiState.isProbing, modifier = Modifier.weight(1f)) {
-                                viewModel.runProbe(ProbeType.DNS)
-                            }
-                            ProbeButton("TCP", ProbeType.TCP, uiState.isProbing, modifier = Modifier.weight(1f)) {
-                                viewModel.runProbe(ProbeType.TCP)
-                            }
-                            ProbeButton("HTTP", ProbeType.HTTP, uiState.isProbing, modifier = Modifier.weight(1f)) {
-                                viewModel.runProbe(ProbeType.HTTP)
-                            }
-                            ProbeButton("Speed", ProbeType.THROUGHPUT, uiState.isProbing, modifier = Modifier.weight(1f)) {
-                                viewModel.runProbe(ProbeType.THROUGHPUT)
-                            }
-                        }
-
-                        AnimatedVisibility(
-                            visible = uiState.isProbing,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            Column {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Executing ${uiState.lastProbeType?.name ?: "Quality"} probe...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        DetailRow("Measured Latency (RTT)", uiState.qualityMetrics.latencyRttMs?.let { "$it ms" } ?: "--")
-                        DetailRow("Jitter", uiState.qualityMetrics.jitterMs?.let { "$it ms" } ?: "--")
-                        DetailRow("Packet / Request Loss", uiState.qualityMetrics.lossRatio?.let { "${(it * 100).toInt()}%" } ?: "--")
-                        DetailRow("Throughput Speed", uiState.qualityMetrics.throughputMbps?.let { String.format(java.util.Locale.US, "%.2f Mbps", it) } ?: "--")
-                        DetailRow("Signal Quality", uiState.qualityMetrics.signalQuality?.name ?: "--")
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        OutlinedButton(
-                            onClick = {
+                    // Right Column: Quality Probes & Measured Metrics
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        QualityProbesCard(
+                            uiState = uiState,
+                            isTabletOrWide = isTabletOrWide,
+                            onRunProbe = { probeType ->
+                                viewModel.runProbe(probeType)
+                            },
+                            onClearMetrics = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.clearMetrics()
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Clear Probe History")
-                        }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
+            } else {
+                // Phone Single-Column Layout
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = horizontalPadding, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CellularTelemetryCard(uiState = uiState)
+                    WifiTelemetryCard(uiState = uiState)
+                    QualityProbesCard(
+                        uiState = uiState,
+                        isTabletOrWide = isTabletOrWide,
+                        onRunProbe = { probeType ->
+                            viewModel.runProbe(probeType)
+                        },
+                        onClearMetrics = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.clearMetrics()
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(16.dp))
+@Composable
+private fun CellularTelemetryCard(uiState: DiagnosticsUiState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CellTower,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "CELLULAR TELEMETRY",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    text = uiState.cellularMetrics.technology ?: "Cellular",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // RSRP Signal Visual Bar
+            uiState.cellularMetrics.rsrp?.let { rsrp ->
+                SignalBar(
+                    label = "LTE Signal Strength (RSRP)",
+                    currentDbm = rsrp,
+                    minDbm = -130,
+                    maxDbm = -60
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            uiState.cellularMetrics.ssRsrp?.let { ssRsrp ->
+                SignalBar(
+                    label = "5G SS-RSRP",
+                    currentDbm = ssRsrp,
+                    minDbm = -130,
+                    maxDbm = -60
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            DetailRow("Operator", uiState.cellularMetrics.operator ?: "Unavailable")
+            DetailRow("RAT Type", uiState.cellularMetrics.displayNetworkType ?: uiState.cellularMetrics.technology ?: "Unavailable")
+            DetailRow("LTE RSRP", uiState.cellularMetrics.rsrp?.let { "$it dBm" } ?: "Unavailable")
+            DetailRow("LTE RSRQ", uiState.cellularMetrics.rsrq?.let { "$it dB" } ?: "Unavailable")
+            DetailRow("LTE RSSNR / SINR", uiState.cellularMetrics.rssnr?.let { "$it dB" } ?: "Unavailable")
+            DetailRow("5G SS-RSRP", uiState.cellularMetrics.ssRsrp?.let { "$it dBm" } ?: "Unavailable")
+            DetailRow("5G SS-RSRQ", uiState.cellularMetrics.ssRsrq?.let { "$it dB" } ?: "Unavailable")
+            DetailRow("5G SS-SINR", uiState.cellularMetrics.ssSinr?.let { "$it dB" } ?: "Unavailable")
+            DetailRow("Channel Quality (CQI)", uiState.cellularMetrics.cqi?.let { "$it / 15" } ?: "Unavailable")
+            DetailRow("Frequency Channel (ARFCN)", uiState.cellularMetrics.nrarfcn?.let { "NR $it" } ?: uiState.cellularMetrics.earfcn?.let { "EARFCN $it" } ?: "Unavailable")
+            DetailRow("Operating Bands", if (uiState.cellularMetrics.bands.isNotEmpty()) uiState.cellularMetrics.bands.joinToString(", ", prefix = "Band ") else "Unavailable")
+            DetailRow("Channel Bandwidth", uiState.cellularMetrics.bandwidthKhz?.let { "${it / 1000} MHz" } ?: "Unavailable")
+            DetailRow("Physical Cell ID (PCI)", uiState.cellularMetrics.pci?.toString() ?: "Unavailable")
+            DetailRow("Cell Sector State", if (uiState.cellularMetrics.isCongested) "High Congestion / Saturated" else "Nominal / Clear")
+        }
+    }
+}
+
+@Composable
+private fun WifiTelemetryCard(uiState: DiagnosticsUiState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Wifi,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "WI-FI TELEMETRY",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            uiState.wifiMetrics.rssi?.let { rssi ->
+                SignalBar(
+                    label = "Wi-Fi RSSI",
+                    currentDbm = rssi,
+                    minDbm = -95,
+                    maxDbm = -30
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            DetailRow("SSID (Redacted)", uiState.wifiMetrics.ssid ?: "Unavailable")
+            DetailRow("RSSI", uiState.wifiMetrics.rssi?.let { "$it dBm" } ?: "Unavailable")
+            DetailRow("Frequency", uiState.wifiMetrics.frequency?.let { "$it MHz" } ?: "Unavailable")
+            DetailRow("Channel", uiState.wifiMetrics.channel?.toString() ?: "Unavailable")
+            DetailRow("Link Speed", uiState.wifiMetrics.linkSpeed?.let { "$it Mbps" } ?: "Unavailable")
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun QualityProbesCard(
+    uiState: DiagnosticsUiState,
+    isTabletOrWide: Boolean,
+    onRunProbe: (ProbeType) -> Unit,
+    onClearMetrics: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = "MANUAL NETWORK PROBES",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Runs isolated network probes to benchmark latency, jitter, loss, and speed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Responsive FlowRow for 4 Probe Buttons
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                maxItemsInEachRow = if (isTabletOrWide) 4 else 2
+            ) {
+                ProbeButton("DNS", ProbeType.DNS, uiState.isProbing, modifier = Modifier.weight(1f)) {
+                    onRunProbe(ProbeType.DNS)
+                }
+                ProbeButton("TCP", ProbeType.TCP, uiState.isProbing, modifier = Modifier.weight(1f)) {
+                    onRunProbe(ProbeType.TCP)
+                }
+                ProbeButton("HTTP", ProbeType.HTTP, uiState.isProbing, modifier = Modifier.weight(1f)) {
+                    onRunProbe(ProbeType.HTTP)
+                }
+                ProbeButton("Speed", ProbeType.THROUGHPUT, uiState.isProbing, modifier = Modifier.weight(1f)) {
+                    onRunProbe(ProbeType.THROUGHPUT)
+                }
+            }
+
+            AnimatedVisibility(
+                visible = uiState.isProbing,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Executing ${uiState.lastProbeType?.name ?: "Quality"} probe...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            DetailRow("Measured Latency (RTT)", uiState.qualityMetrics.latencyRttMs?.let { "$it ms" } ?: "--")
+            DetailRow("Jitter", uiState.qualityMetrics.jitterMs?.let { "$it ms" } ?: "--")
+            DetailRow("Packet / Request Loss", uiState.qualityMetrics.lossRatio?.let { "${(it * 100).toInt()}%" } ?: "--")
+            DetailRow("Throughput Speed", uiState.qualityMetrics.throughputMbps?.let { String.format(java.util.Locale.US, "%.2f Mbps", it) } ?: "--")
+            DetailRow("Signal Quality", uiState.qualityMetrics.signalQuality?.name ?: "--")
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedButton(
+                onClick = onClearMetrics,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Clear Probe History")
             }
         }
     }
