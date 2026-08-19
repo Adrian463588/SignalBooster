@@ -77,6 +77,13 @@ Thumbs.db
 # Profiler & memory dumps
 *.hprof
 
-# Third-party learning references (excluded from public distribution)
-porjectreferences/
+# Internal specifications & architecture docs (excluded from public distribution)
+docs/
+docs/**
 
+# Third-party learning references & prohibited material (excluded from public distribution)
+porjectreferences/
+projectreferences/
+references/
+reference*/
+refrence*/

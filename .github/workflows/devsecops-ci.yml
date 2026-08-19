@@ -20,6 +20,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify No Internal Docs or Reference Projects in Repository
+        run: |
+          echo "Checking for forbidden internal docs and reference projects..."
+          FORBIDDEN_FOUND=0
+          if [ -d "docs" ] && [ "$(find docs -name '*.md' 2>/dev/null | wc -l)" -gt 0 ]; then
+            echo "::error::Internal docs directory contains markdown files in repository!"
+            FORBIDDEN_FOUND=1
+          fi
+          if [ -d "porjectreferences" ] || [ -d "projectreferences" ]; then
+            echo "::error::Reference project directories found in repository!"
+            FORBIDDEN_FOUND=1
+          fi
+          if [ "$FORBIDDEN_FOUND" -ne 0 ]; then
+            echo "Failing CI due to DevSecOps policy violation."
+            exit 1
+          fi
+          echo "Repository cleanliness & data leakage check passed."
+
       - name: Gitleaks Secret Detection
         uses: gitleaks/gitleaks-action@v2
         env:

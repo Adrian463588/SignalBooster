@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+# SignalBooster DevSecOps Pre-Commit Hook
+# Prevents accidental commits of internal docs, learning reference projects, or secrets.
+
+FORBIDDEN_PATHS="docs/ porjectreferences/ projectreferences/ reference refrence"
+FORBIDDEN_EXTS="\.jks$ \.keystore$ \.key$ \.pem$ \.p12$ \.pkcs12$ \.crt$ google-services\.json$ local\.properties$ \.env"
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+FAILED=0
+
+for file in $STAGED_FILES; do
+    # Check forbidden directory paths
+    for forbidden in $FORBIDDEN_PATHS; do
+        case "$file" in
+            $forbidden*|*/$forbidden*)
+                echo "❌ [DevSecOps Pre-Commit Error] Blocked forbidden path from commit: $file"
+                echo "   -> Reason: Internal documentation and reference projects must not be committed to GitHub."
+                FAILED=1
+                break
+                ;;
+        esac
+    done
+
+    # Check forbidden secret patterns
+    for ext in $FORBIDDEN_EXTS; do
+        if echo "$file" | grep -Eq "$ext"; then
+            echo "❌ [DevSecOps Pre-Commit Error] Blocked potential secret/config file: $file"
+            echo "   -> Reason: Keystores, certificates, and local credentials must remain uncommitted."
+            FAILED=1
+            break
+        fi
+    done
+done
+
+if [ "$FAILED" -ne 0 ]; then
+    echo ""
+    echo "🚨 Commit aborted by DevSecOps security policy."
+    echo "   Please unstage the forbidden file(s) using: git reset HEAD <file>"
+    exit 1
+fi
+
+exit 0
