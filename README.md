@@ -125,7 +125,7 @@ SignalBooster/
 │   └── proguard-rules.pro
 ├── .github/
 │   └── workflows/                  # DevSecOps CI/CD Pipelines
-├── docs/                           # Architectural & capability technical specs
+├── .githooks/                      # Shift-Left Pre-Commit Security Guard Hooks
 ├── PRD.md                          # Product Requirements Document
 ├── AGENTS.md                       # Agent & Engineering Guidelines
 ├── SECURITY.md                     # Security & Vulnerability Disclosure Policy

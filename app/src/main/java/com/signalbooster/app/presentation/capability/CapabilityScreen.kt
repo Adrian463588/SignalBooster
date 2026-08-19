@@ -3,6 +3,7 @@ package com.signalbooster.app.presentation.capability
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -81,14 +82,19 @@ fun CapabilityScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            val isTabletOrWide = maxWidth > 600.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = if (isTabletOrWide) 32.dp else 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // 1. Status Overview Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -189,4 +195,5 @@ fun CapabilityScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
 }

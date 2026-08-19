@@ -1,16 +1,23 @@
 package com.signalbooster.app.presentation.navigation
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -45,83 +52,145 @@ fun AppNavigation(
         Screen.Settings
     )
 
-    Scaffold(
-        bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isTabletOrWide = maxWidth >= 600.dp
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-            NavigationBar {
-                items.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = {
-                            Text(
-                                text = screen.title,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+        if (isTabletOrWide) {
+            // Adaptive Tablet / Wide Landscape Layout: NavigationRail on left
+            Row(modifier = Modifier.fillMaxSize()) {
+                NavigationRail(
+                    modifier = Modifier.fillMaxHeight(),
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    items.forEach { screen ->
+                        NavigationRailItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.title) },
+                            label = {
+                                Text(
+                                    text = screen.title,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            selected = currentRoute == screen.route,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
+                        )
+                    }
+                }
+
+                Scaffold(
+                    modifier = Modifier.weight(1f)
+                ) { innerPadding ->
+                    AppNavHost(
+                        navController = navController,
+                        onOpenSettings = onOpenSettings,
+                        modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable(Screen.Dashboard.route) {
-                val viewModel: DashboardViewModel = hiltViewModel()
-                DashboardScreen(
-                    viewModel = viewModel,
-                    onOpenSettings = onOpenSettings
-                )
-            }
-            composable(Screen.Diagnostics.route) {
-                val viewModel: DiagnosticsViewModel = hiltViewModel()
-                DiagnosticsScreen(viewModel = viewModel)
-            }
-            composable(Screen.CrowdMode.route) {
-                val viewModel: CrowdModeViewModel = hiltViewModel()
-                CrowdModeScreen(
-                    viewModel = viewModel,
-                    onOpenSettings = onOpenSettings
-                )
-            }
-            composable(Screen.Privacy.route) {
-                val viewModel: PrivacyViewModel = hiltViewModel()
-                PrivacyScreen(viewModel = viewModel)
-            }
-            composable(Screen.Settings.route) {
-                val viewModel: SettingsViewModel = hiltViewModel()
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onNavigateToCapabilities = {
-                        navController.navigate("capabilities")
+        } else {
+            // Standard Phone Compact Layout: NavigationBar at bottom
+            Scaffold(
+                bottomBar = {
+                    NavigationBar {
+                        items.forEach { screen ->
+                            NavigationBarItem(
+                                icon = { Icon(screen.icon, contentDescription = screen.title) },
+                                label = {
+                                    Text(
+                                        text = screen.title,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
+                                selected = currentRoute == screen.route,
+                                onClick = {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            )
+                        }
                     }
-                )
-            }
-            composable("capabilities") {
-                val viewModel: CapabilityViewModel = hiltViewModel()
-                CapabilityScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                }
+            ) { innerPadding ->
+                AppNavHost(
+                    navController = navController,
+                    onOpenSettings = onOpenSettings,
+                    modifier = Modifier.padding(innerPadding)
                 )
             }
         }
     }
 }
+
+@Composable
+private fun AppNavHost(
+    navController: androidx.navigation.NavHostController,
+    onOpenSettings: (SettingsDestination) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Dashboard.route,
+        modifier = modifier
+    ) {
+        composable(Screen.Dashboard.route) {
+            val viewModel: DashboardViewModel = hiltViewModel()
+            DashboardScreen(
+                viewModel = viewModel,
+                onOpenSettings = onOpenSettings
+            )
+        }
+        composable(Screen.Diagnostics.route) {
+            val viewModel: DiagnosticsViewModel = hiltViewModel()
+            DiagnosticsScreen(viewModel = viewModel)
+        }
+        composable(Screen.CrowdMode.route) {
+            val viewModel: CrowdModeViewModel = hiltViewModel()
+            CrowdModeScreen(
+                viewModel = viewModel,
+                onOpenSettings = onOpenSettings
+            )
+        }
+        composable(Screen.Privacy.route) {
+            val viewModel: PrivacyViewModel = hiltViewModel()
+            PrivacyScreen(viewModel = viewModel)
+        }
+        composable(Screen.Settings.route) {
+            val viewModel: SettingsViewModel = hiltViewModel()
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateToCapabilities = {
+                    navController.navigate("capabilities")
+                }
+            )
+        }
+        composable("capabilities") {
+            val viewModel: CapabilityViewModel = hiltViewModel()
+            CapabilityScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+}
+

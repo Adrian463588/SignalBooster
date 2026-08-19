@@ -63,7 +63,11 @@ class CrowdModeViewModel @Inject constructor(
                 add(
                     BandObservation(
                         bandName = wifi.frequency?.let { frequency ->
-                            if (frequency > 5000) "5 GHz Wi-Fi" else "2.4 GHz Wi-Fi"
+                            when {
+                                frequency >= 5945 -> "6 GHz Wi-Fi 6E"
+                                frequency >= 5000 -> "5 GHz Wi-Fi"
+                                else -> "2.4 GHz Wi-Fi"
+                            }
                         } ?: "Wi-Fi frequency unavailable",
                         frequencyMhz = wifi.frequency,
                         channel = wifi.channel,

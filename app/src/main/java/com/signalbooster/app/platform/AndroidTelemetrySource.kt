@@ -62,7 +62,7 @@ class AndroidTelemetrySource @Inject constructor(
     private val _wifiMetrics = MutableStateFlow(WifiMetrics())
     override val wifiMetrics: Flow<WifiMetrics> = _wifiMetrics.asStateFlow()
 
-    private val _bluetoothScanResults = MutableStateFlow(BluetoothScanResults(deviceCount = 0))
+    private val _bluetoothScanResults = MutableStateFlow(BluetoothScanResults(deviceCount = null))
     override val bluetoothScanResults: Flow<BluetoothScanResults> = _bluetoothScanResults.asStateFlow()
 
     private val _privacyPosture = MutableStateFlow(PrivacyPosture.DEFAULT)
