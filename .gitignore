@@ -87,3 +87,8 @@ projectreferences/
 references/
 reference*/
 refrence*/
+
+# Documentation and planning files
+AGENTS.md
+DESIGN.md
+PRD.md
